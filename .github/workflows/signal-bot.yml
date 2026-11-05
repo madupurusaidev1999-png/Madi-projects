@@ -1,27 +1,32 @@
 name: Signal Bot
 
+# How it stays on 24/7:
+#   * a "loop" run scans every 5 minutes for ~5h40m, then starts the next loop run itself
+#   * the cron below is only a backup that restarts the chain if it ever stops
+#     (the concurrency group makes sure only one loop runs at a time)
 on:
   schedule:
-    - cron: "*/5 * * * *"   # every 5 minutes (GitHub may delay runs a few minutes)
+    - cron: "*/30 * * * *"
   workflow_dispatch:
     inputs:
       mode:
-        description: "scan = normal run, test = send a Telegram test message"
-        default: scan
+        description: "loop = run continuously, scan = one scan, test = Telegram test message"
+        default: loop
         type: choice
-        options: [scan, test]
+        options: [loop, scan, test]
 
 concurrency:
   group: signal-bot
   cancel-in-progress: false
 
 permissions:
-  contents: write   # to commit the daily report
+  contents: write   # commit the daily report
+  actions: write    # start the next loop run
 
 jobs:
   scan:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 355
     defaults:
       run:
         working-directory: signal-bot
@@ -29,6 +34,7 @@ jobs:
       TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
       TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
       BOT_TIMEZONE: ${{ vars.BOT_TIMEZONE || 'UTC' }}
+      MODE: ${{ inputs.mode || 'loop' }}
     steps:
       - uses: actions/checkout@v5
 
@@ -41,30 +47,34 @@ jobs:
       - run: pip install -r requirements.txt
 
       - name: Telegram test
-        if: github.event_name == 'workflow_dispatch' && inputs.mode == 'test'
+        if: env.MODE == 'test'
         run: python -m bot.main --test
 
       - name: Restore bot memory
-        if: github.event_name == 'schedule' || inputs.mode == 'scan'
+        if: env.MODE != 'test'
         uses: actions/cache/restore@v4
         with:
           path: signal-bot/state
           key: bot-state-${{ github.run_id }}
           restore-keys: bot-state-
 
-      - name: Scan markets and send signals
-        if: github.event_name == 'schedule' || inputs.mode == 'scan'
+      - name: Scan once
+        if: env.MODE == 'scan'
         run: python -m bot.main
 
+      - name: Scan every 5 minutes (~5h40m)
+        if: env.MODE == 'loop'
+        run: python -u -m bot.main --loop 340
+
       - name: Save bot memory
-        if: always() && (github.event_name == 'schedule' || inputs.mode == 'scan')
+        if: always() && env.MODE != 'test'
         uses: actions/cache/save@v4
         with:
           path: signal-bot/state
           key: bot-state-${{ github.run_id }}-${{ github.run_attempt }}
 
       - name: Commit daily report
-        if: github.event_name == 'schedule' || inputs.mode == 'scan'
+        if: always() && env.MODE != 'test'
         run: |
           if [ -n "$(git status --porcelain reports 2>/dev/null)" ]; then
             git config user.name "signal-bot"
@@ -73,3 +83,9 @@ jobs:
             git commit -m "Daily signal report"
             git pull --rebase origin "${GITHUB_REF_NAME}" && git push
           fi
+
+      - name: Start the next loop run
+        if: always() && env.MODE == 'loop' && github.ref_name == 'main'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh workflow run signal-bot.yml --ref main -f mode=loop

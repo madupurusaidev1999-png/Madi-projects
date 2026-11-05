@@ -167,11 +167,28 @@ def main():
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
     p = argparse.ArgumentParser()
     p.add_argument("--test", action="store_true", help="send a Telegram test message")
+    p.add_argument("--loop", type=float, metavar="MINUTES",
+                   help="keep scanning every SCAN_EVERY_MIN minutes for this long")
     args = p.parse_args()
     if args.test:
         ok = telegram.send("✅ Signal bot is connected. Signals will arrive here.")
         sys.exit(0 if ok else 1)
-    run()
+    if not args.loop:
+        run()
+        return
+
+    stop_at = time.time() + args.loop * 60
+    step = config.SCAN_EVERY_MIN * 60
+    while True:
+        try:
+            run()
+        except Exception:
+            log.exception("scan failed; will retry next cycle")
+        nxt = (time.time() // step + 1) * step  # next 5-minute boundary
+        if nxt >= stop_at:
+            break
+        time.sleep(max(1, nxt - time.time()))
+    log.info("loop finished")
 
 
 if __name__ == "__main__":

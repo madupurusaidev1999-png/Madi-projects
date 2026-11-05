@@ -42,6 +42,7 @@ GRADE_B = 60
 GRADE_C = 48                    # lowest score ever sent
 URGENT_SCORE = 80               # sent immediately on any 5-minute scan
 
+SCAN_EVERY_MIN = 5              # scan interval in loop mode
 BATCH_EVERY_MIN = 15            # regular signal batch interval
 MAX_PER_BATCH = 3
 MIN_PER_BATCH = 1               # if nothing is grade B+, send the best C (if any)
