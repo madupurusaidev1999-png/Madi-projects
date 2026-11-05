@@ -68,6 +68,28 @@ def format_signal(sig, asset, urgent=False):
         f"TP1:   <code>{fmt_price(sig['tp1'])}</code>  ({pct(sig['tp1'])})",
         f"TP2:   <code>{fmt_price(sig['tp2'])}</code>  ({pct(sig['tp2'])})",
         f"R:R 1:{config.TP1_R} / 1:{config.TP2_R}",
+    ]
+    sp = sig.get("spot")
+    if sp:
+        code = {"GOLD": "XAU", "SILVER": "XAG", "COPPER": "Copper", "PLATINUM": "XPT",
+                "PALLADIUM": "XPD"}.get(asset.sentiment_key, asset.sentiment_key)
+        shift = sp - e  # same move, applied to the spot price
+        lines += [
+            "",
+            f"<b>📍 Spot {code}/USD levels</b> (Kraken Prop / CFD price)",
+            f"Spot now: <code>{fmt_price(sp)}</code>",
+            f"Entry ≈ <code>{fmt_price(e + shift)}</code> · SL <code>{fmt_price(sig['sl'] + shift)}</code>",
+            f"TP1 <code>{fmt_price(sig['tp1'] + shift)}</code> · TP2 <code>{fmt_price(sig['tp2'] + shift)}</code>",
+        ]
+    risk = abs(e - sig["sl"])
+    dollars = config.ACCOUNT_SIZE * config.RISK_PCT / 100
+    unit = {"GOLD": "oz", "SILVER": "oz", "PLATINUM": "oz", "PALLADIUM": "oz", "COPPER": "lb"}.get(
+        asset.sentiment_key, asset.symbol.split("/")[0]) if asset.kind == "metal" else asset.symbol.split("/")[0]
+    lines += [
+        f"Distances: SL {fmt_price(risk)} · TP1 {fmt_price(risk * config.TP1_R)} · "
+        f"TP2 {fmt_price(risk * config.TP2_R)} (price points)",
+        f"💰 Size for {config.RISK_PCT:g}% risk (${dollars:,.0f} of ${config.ACCOUNT_SIZE:,.0f}): "
+        f"<b>{dollars / risk:,.4g} {html.escape(unit)}</b> ≈ ${dollars / risk * e:,.0f} position",
         "",
         "<b>⏳ Validity</b>",
         f"• Enter before <b>{entry_until}</b>, otherwise skip it",

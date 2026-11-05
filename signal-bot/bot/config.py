@@ -59,5 +59,10 @@ TP2_R = 2.5                     # take-profit 2 = 2.5x the risk
 
 SENTIMENT_MAX_POINTS = 15       # how much news sentiment can move the score
 
-STATE_DIR = os.getenv("BOT_STATE_DIR", "state")
+# ---------- Position sizing (shown in each signal) ----------
+ACCOUNT_SIZE = float(os.getenv("BOT_ACCOUNT_SIZE", "5000"))
+RISK_PCT = float(os.getenv("BOT_RISK_PCT", "1"))   # % of account risked per trade
+MAX_SPOT_BASIS_PCT = 3.0        # ignore a spot price that differs more than this (wrong units)
+
+STATE_DIR =os.getenv("BOT_STATE_DIR", "state")
 REPORTS_DIR = os.getenv("BOT_REPORTS_DIR", "reports")

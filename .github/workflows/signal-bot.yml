@@ -16,7 +16,8 @@ on:
         options: [loop, scan, test]
 
 concurrency:
-  group: signal-bot
+  # one loop at a time; manual scan/test runs don't wait behind the loop
+  group: signal-bot-${{ (inputs.mode == 'scan' || inputs.mode == 'test') && inputs.mode || 'loop' }}
   cancel-in-progress: false
 
 permissions:

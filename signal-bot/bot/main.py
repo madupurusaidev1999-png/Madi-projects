@@ -115,6 +115,7 @@ def run():
     # 2) sentiment
     crypto_syms = [a.symbol.split("/")[0] for a in assets if a.kind == "crypto"]
     sent = Sentiment().collect(crypto_syms)
+    spot = markets.spot_metal_prices() if any(a.kind == "metal" for a in assets) else {}
 
     # 3) signals
     cands = []
@@ -130,6 +131,9 @@ def run():
         for sig in analyze(df, state.get("trigger_stats")):
             sig = apply_sentiment(sig, by_id[aid], sent)
             sig["grade"] = grade(sig["score"])
+            sp = spot.get(by_id[aid].sentiment_key) if by_id[aid].kind == "metal" else None
+            if sp and abs(sp - sig["entry"]) / sig["entry"] * 100 <= config.MAX_SPOT_BASIS_PCT:
+                sig["spot"] = sp
             cands.append((by_id[aid], sig))
     log.info("%d candidate setups", len(cands))
     for a, s in sorted(cands, key=lambda c: c[1]["score"], reverse=True)[:10]:

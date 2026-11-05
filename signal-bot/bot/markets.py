@@ -122,14 +122,20 @@ def metal_universe(tickers=None):
     perps = [t for t in tickers if str(t.get("symbol", "")).upper().startswith("PF_")]
     assets = []
     for m in config.METALS:
-        match = next(
+        found = [t["symbol"] for t in perps if m["code"] in t["symbol"].upper()]
+        if found:
+            log.info("kraken perps for %s: %s", m["name"], ", ".join(found))
+        # prefer the plain metal perp (PF_XAUUSD) over token perps (PF_XAUTUSD)
+        exact = f"PF_{m['code']}USD"
+        match = next((t for t in perps if t["symbol"].upper() == exact), None) or next(
             (t for t in perps if m["code"] in t["symbol"].upper() and t["symbol"].upper().endswith("USD")),
             None,
         )
         if match:
+            name = match["symbol"].upper().removeprefix("PF_").removesuffix("USD")
             assets.append(Asset(
                 id=f"kraken_futures:{match['symbol']}",
-                symbol=f"{m['name']} ({m['code']}/USD perp)",
+                symbol=f"{m['name']} ({name}/USD perp)",
                 kind="metal",
                 source="kraken_futures",
                 ref=match["symbol"],
@@ -148,6 +154,29 @@ def metal_universe(tickers=None):
                 venue="Not found on Kraken - reference: COMEX futures (use the % levels)",
             ))
     return assets
+
+
+# ---------------------------------------------------------------- spot metals
+SPOT_CODES = {"GOLD": "XAU", "SILVER": "XAG", "COPPER": "HG", "PLATINUM": "XPT", "PALLADIUM": "XPD"}
+
+
+def spot_metal_prices():
+    """Live spot prices (what CFD / prop platforms quote), e.g. {"GOLD": 4101.2}."""
+    out = {}
+    for key, code in SPOT_CODES.items():
+        try:
+            out[key] = float(get(f"https://api.gold-api.com/price/{code}", retries=1, timeout=8)["price"])
+        except Exception as e:
+            log.debug("gold-api %s failed: %s", code, e)
+    if "GOLD" not in out or "SILVER" not in out:  # backup source for gold & silver
+        try:
+            item = get("https://data-asg.goldprice.org/dbXRates/USD", retries=1, timeout=8)["items"][0]
+            out.setdefault("GOLD", float(item["xauPrice"]))
+            out.setdefault("SILVER", float(item["xagPrice"]))
+        except Exception as e:
+            log.debug("goldprice.org failed: %s", e)
+    log.info("spot metals: %s", ", ".join(f"{k} {v:g}" for k, v in out.items()) or "unavailable")
+    return out
 
 
 # ---------------------------------------------------------------- candles
