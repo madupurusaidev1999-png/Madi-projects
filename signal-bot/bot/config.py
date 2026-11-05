@@ -29,6 +29,9 @@ METALS = [
     {"name": "Platinum", "code": "XPT", "yahoo": "PL=F"},
     {"name": "Palladium", "code": "XPD", "yahoo": "PA=F"},
 ]
+# Use Yahoo prices for metals Kraken doesn't list (Platinum, Palladium)?
+# Off by default: Yahoo blocks GitHub's servers, and you can't trade them on Kraken.
+YAHOO_FALLBACK = False
 
 # ---------- Signal rules ----------
 MIN_CANDLES_15M = 200

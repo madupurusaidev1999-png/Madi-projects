@@ -137,7 +137,7 @@ def metal_universe(tickers=None):
                 venue="Kraken Pro Futures",
                 volume_usd=float(match.get("volumeQuote") or 0),
             ))
-        else:
+        elif config.YAHOO_FALLBACK:
             assets.append(Asset(
                 id=f"yahoo:{m['yahoo']}",
                 symbol=f"{m['name']} ({m['code']}/USD)",

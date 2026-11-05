@@ -105,7 +105,14 @@ def run():
     # 3) signals
     cands = []
     by_id = {a.id: a for a in assets}
+    lens = sorted(len(df) for df in candles.values())
+    log.info("candles fetched for %d/%d markets; bars min/median/max = %s/%s/%s",
+             len(candles), len(assets), lens[0] if lens else 0,
+             lens[len(lens) // 2] if lens else 0, lens[-1] if lens else 0)
     for aid, df in candles.items():
+        if len(df):
+            log.info("  %-28s bars=%d last=%s close=%.6g", by_id[aid].symbol, len(df),
+                     df.index[-1].strftime("%H:%M"), df["close"].iloc[-1])
         for sig in analyze(df, state.get("trigger_stats")):
             sig = apply_sentiment(sig, by_id[aid], sent)
             sig["grade"] = grade(sig["score"])
