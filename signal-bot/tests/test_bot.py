@@ -120,7 +120,7 @@ def test_end_to_end_offline(tmp_path, monkeypatch, capsys):
     st = tracker.load_state()
     assert st["last_batch"] and 1 <= len(st["signals"]) <= config.MAX_PER_BATCH
     out = capsys.readouterr().out
-    assert "Entry:" in out and "TP1:" in out and "Enter before" in out and "close by" in out
+    assert "Entry:" in out and "TP1:" in out and "Enter before" in out and "Close by" in out
     assert sum(1 for s in st["signals"] if s["asset"]["sentiment_key"] == "GOLD") <= 1
 
     # an immediate second run is not a batch: only urgent signals, and no repeats

@@ -133,7 +133,7 @@ def run():
             sig["grade"] = grade(sig["score"])
             sp = spot.get(by_id[aid].sentiment_key) if by_id[aid].kind == "metal" else None
             if sp and abs(sp - sig["entry"]) / sig["entry"] * 100 <= config.MAX_SPOT_BASIS_PCT:
-                sig["spot"] = sp
+                sig["shift"] = sp - sig["entry"]  # move levels onto the spot price
             cands.append((by_id[aid], sig))
     log.info("%d candidate setups", len(cands))
     for a, s in sorted(cands, key=lambda c: c[1]["score"], reverse=True)[:10]:
@@ -152,6 +152,7 @@ def run():
                 "entry": sig["entry"], "sl": sig["sl"], "tp1": sig["tp1"], "tp2": sig["tp2"],
                 "score": sig["score"], "grade": sig["grade"], "triggers": sig["triggers"],
                 "candle_time": sig["candle_time"], "sent_at": now.isoformat(), "status": "open",
+                "shift": sig.get("shift", 0.0), "name": telegram.display_name(asset),
             })
     log.info("sent %d signal(s)%s", len(picked), " (urgent)" if urgent else "")
 

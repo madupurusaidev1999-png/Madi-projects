@@ -34,6 +34,10 @@ def fmt_price(p):
     return f"{p:.8f}".rstrip("0")
 
 
+def fmt_dist(d):
+    return f"{d:,.2f}" if d >= 1 else fmt_price(d)
+
+
 def local_time(dt=None):
     dt = dt or datetime.now(timezone.utc)
     try:
@@ -43,9 +47,23 @@ def local_time(dt=None):
     return dt.astimezone(tz).strftime("%d %b %H:%M %Z")
 
 
+METAL_NAMES = {"GOLD": "XAU/USD (Gold)", "SILVER": "XAG/USD (Silver)", "COPPER": "Copper (XCU/USD)",
+               "PLATINUM": "XPT/USD (Platinum)", "PALLADIUM": "XPD/USD (Palladium)"}
+
+
+def display_name(asset):
+    if asset.kind == "metal":
+        return METAL_NAMES.get(asset.sentiment_key, asset.symbol)
+    return asset.symbol
+
+
 def format_signal(sig, asset, urgent=False):
+    """Levels are shown in Kraken Prop terms: crypto = Kraken price,
+    metals = live spot price (the bot shifts its levels onto spot)."""
     long_ = sig["direction"] == "LONG"
-    e = sig["entry"]
+    shift = sig.get("shift", 0.0)
+    e, sl, tp1, tp2 = (sig[k] + shift for k in ("entry", "sl", "tp1", "tp2"))
+    chase = e + (1 if long_ else -1) * sig["risk"] * config.ENTRY_ZONE_R
 
     def pct(x):
         return f"{(x - e) / e * 100:+.2f}%"
@@ -53,49 +71,28 @@ def format_signal(sig, asset, urgent=False):
     now = datetime.now(timezone.utc)
     entry_until = local_time(now + timedelta(minutes=config.ENTRY_VALID_MINUTES))
     close_by = local_time(now + timedelta(hours=config.SIGNAL_EXPIRY_HOURS))
-    zone = sig["risk"] * config.ENTRY_ZONE_R
-    # "chase limit": the worst price you should still enter at
-    chase = e + zone if long_ else e - zone
-    head = "🟢 LONG / BUY" if long_ else "🔴 SHORT / SELL"
-    badge = {"A": "⭐ Grade A", "B": "Grade B", "C": "Grade C (lower confidence)"}[sig["grade"]]
+    head = "🟢 BUY / LONG" if long_ else "🔴 SELL / SHORT"
+    badge = {"A": "⭐ Grade A", "B": "Grade B", "C": "Grade C"}[sig["grade"]]
+    if asset.kind == "metal":
+        src = "spot price" if "shift" in sig else "Kraken futures price (spot unavailable)"
+    else:
+        src = "Kraken price"
     lines = [
-        f"{'⚡ URGENT · ' if urgent else ''}<b>{head}  {html.escape(asset.symbol)}</b>",
-        f"{badge} · score {sig['score']:.0f}/100 · {asset.kind.title()}",
-        f"Where: {html.escape(asset.venue)}",
+        f"{'⚡ ' if urgent else ''}<b>{head}  {html.escape(display_name(asset))}</b>",
+        f"{badge} · score {sig['score']:.0f}/100",
         "",
         f"Entry: <code>{fmt_price(e)}</code>",
-        f"Stop:  <code>{fmt_price(sig['sl'])}</code>  ({pct(sig['sl'])})",
-        f"TP1:   <code>{fmt_price(sig['tp1'])}</code>  ({pct(sig['tp1'])})",
-        f"TP2:   <code>{fmt_price(sig['tp2'])}</code>  ({pct(sig['tp2'])})",
-        f"R:R 1:{config.TP1_R} / 1:{config.TP2_R}",
-    ]
-    sp = sig.get("spot")
-    if sp:
-        code = {"GOLD": "XAU", "SILVER": "XAG", "COPPER": "Copper", "PLATINUM": "XPT",
-                "PALLADIUM": "XPD"}.get(asset.sentiment_key, asset.sentiment_key)
-        shift = sp - e  # same move, applied to the spot price
-        lines += [
-            "",
-            f"<b>📍 Spot {code}/USD levels</b> (Kraken Prop / CFD price)",
-            f"Spot now: <code>{fmt_price(sp)}</code>",
-            f"Entry ≈ <code>{fmt_price(e + shift)}</code> · SL <code>{fmt_price(sig['sl'] + shift)}</code>",
-            f"TP1 <code>{fmt_price(sig['tp1'] + shift)}</code> · TP2 <code>{fmt_price(sig['tp2'] + shift)}</code>",
-        ]
-    risk = abs(e - sig["sl"])
-    dollars = config.ACCOUNT_SIZE * config.RISK_PCT / 100
-    unit = {"GOLD": "oz", "SILVER": "oz", "PLATINUM": "oz", "PALLADIUM": "oz", "COPPER": "lb"}.get(
-        asset.sentiment_key, asset.symbol.split("/")[0]) if asset.kind == "metal" else asset.symbol.split("/")[0]
-    lines += [
-        f"Distances: SL {fmt_price(risk)} · TP1 {fmt_price(risk * config.TP1_R)} · "
-        f"TP2 {fmt_price(risk * config.TP2_R)} (price points)",
-        f"💰 Size for {config.RISK_PCT:g}% risk (${dollars:,.0f} of ${config.ACCOUNT_SIZE:,.0f}): "
-        f"<b>{dollars / risk:,.4g} {html.escape(unit)}</b> ≈ ${dollars / risk * e:,.0f} position",
+        f"SL:    <code>{fmt_price(sl)}</code>  ({pct(sl)})",
+        f"TP1:   <code>{fmt_price(tp1)}</code>  ({pct(tp1)})",
+        f"TP2:   <code>{fmt_price(tp2)}</code>  ({pct(tp2)})",
+        f"<i>Levels use the {src}. If your chart differs a little, keep the same distances: "
+        f"SL {fmt_dist(sig['risk'])} · TP1 {fmt_dist(sig['risk'] * config.TP1_R)} · "
+        f"TP2 {fmt_dist(sig['risk'] * config.TP2_R)}</i>",
         "",
-        "<b>⏳ Validity</b>",
-        f"• Enter before <b>{entry_until}</b>, otherwise skip it",
-        f"• Don't enter {'above' if long_ else 'below'} <code>{fmt_price(chase)}</code> (price already ran)",
-        f"• Invalid if stop <code>{fmt_price(sig['sl'])}</code> is hit before you enter",
-        f"• If neither TP nor SL is hit, close by <b>{close_by}</b>",
+        "<b>⏳ Valid</b>",
+        f"• Enter before <b>{entry_until}</b>",
+        f"• Skip if price is already {'above' if long_ else 'below'} <code>{fmt_price(chase)}</code>",
+        f"• Close by <b>{close_by}</b> if no TP/SL hit",
         "",
         "<b>Why:</b>",
     ]
@@ -103,7 +100,7 @@ def format_signal(sig, asset, urgent=False):
     top = (sig.get("sentiment") or {}).get("top")
     if top:
         lines.append(f"📰 <i>{html.escape(top[:140])}</i>")
-    lines += ["", f"🕒 {local_time()} · Move SL to entry after TP1 · Not financial advice"]
+    lines += ["", f"🕒 {local_time()}"]
     return "\n".join(lines)
 
 
@@ -111,5 +108,6 @@ def format_outcome(rec, event, r_value):
     icon = {"tp1": "✅", "tp2": "🏆", "sl": "❌", "expired": "⌛"}[event]
     label = {"tp1": "hit TP1", "tp2": "hit TP2", "sl": "hit stop-loss",
              "expired": f"expired after {config.SIGNAL_EXPIRY_HOURS}h"}[event]
-    return (f"{icon} {rec['direction']} <b>{html.escape(rec['symbol'])}</b> {label} "
-            f"({r_value:+.1f}R)\nEntry {fmt_price(rec['entry'])} · sent {local_time(datetime.fromisoformat(rec['sent_at']))}")
+    entry = rec["entry"] + rec.get("shift", 0.0)
+    return (f"{icon} {rec['direction']} <b>{html.escape(rec.get('name', rec['symbol']))}</b> {label} "
+            f"({r_value:+.1f}R)\nEntry {fmt_price(entry)} · sent {local_time(datetime.fromisoformat(rec['sent_at']))}")
