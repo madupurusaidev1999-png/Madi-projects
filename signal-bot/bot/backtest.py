@@ -60,38 +60,52 @@ def simulate(df, i, sig, sl_mult, tp_r):
     for j in range(i + 1, last + 1):
         hi, lo = df["high"].iat[j], df["low"].iat[j]
         if (lo if d == 1 else hi) * d <= sl * d:
-            return -1.0, j
+            return -1.0, j, risk
         if (hi if d == 1 else lo) * d >= tp * d:
-            return tp_r, j
-    return (df["close"].iat[last] - e) * d / risk, last
+            return tp_r, j, risk
+    return (df["close"].iat[last] - e) * d / risk, last, risk
 
 
 VARIANTS = {
-    "min_score": [48, 60, 70, 80],
-    "need_trend": [False, True],      # 1H trend AND 4H bias must agree
+    "min_score": [70, 75, 80, 85, 90],
+    "btc_align": [False, True],       # alts only in the direction of BTC's 4H trend
     "sl_mult": [1.2, 1.8],
     "tp_r": [1.0, 1.5],
 }
+FEE_PCT = 0.10  # round-trip trading cost (fees + spread), in % of price
 
 
-def run_variants(data):
+def btc_regime(btc):
+    """+1 / -1 per 15m bar: BTC 4H EMA21 rising or falling (completed 4H bars only)."""
+    from .indicators import ema, resample
+    e = ema(resample(btc, "4h")["close"], 21)
+    reg = (e > e.shift(2)).map({True: 1, False: -1})
+    reg.index = reg.index + pd.Timedelta(hours=4)  # known only once the 4H bar closes
+    return reg.reindex(btc.index, method="ffill").fillna(0)
+
+
+def run_variants(data, regime=None):
     rows = []
-    for ms, nt, slm, tpr in itertools.product(*VARIANTS.values()):
+    for ms, ba, slm, tpr in itertools.product(*VARIANTS.values()):
         trades = []
         for sym, (df, setups) in data.items():
             busy_until = -1
             for i, sig in setups:
                 if i <= busy_until or sig["score"] < ms:
                     continue
-                if nt and not (sig["feat"]["trend_ok"] and sig["feat"]["bias_ok"]):
-                    continue
-                r, exit_i = simulate(df, i, sig, slm, tpr)
+                if ba and regime is not None and not sym.startswith(("Gold", "Silver", "Copper")) \
+                        and not sym.startswith("BTC/"):
+                    want = 1 if sig["direction"] == "LONG" else -1
+                    if regime.asof(df.index[i]) != want:
+                        continue
+                r, exit_i, risk = simulate(df, i, sig, slm, tpr)
+                r -= FEE_PCT / 100 * sig["entry"] / risk  # costs, expressed in R
                 busy_until = exit_i
                 trades.append((sym, sig["direction"], r, tuple(sig["triggers"])))
         if not trades:
             continue
         rs = pd.Series([t[2] for t in trades])
-        rows.append({"min_score": ms, "need_trend": nt, "sl_atr": slm, "tp_R": tpr,
+        rows.append({"min_score": ms, "btc_align": ba, "sl_atr": slm, "tp_R": tpr,
                      "trades": len(trades), "per_day": round(len(trades) / DAYS, 1),
                      "win%": round((rs > 0).mean() * 100, 1), "avg_R": round(rs.mean(), 3),
                      "total_R": round(rs.sum(), 1), "_trades": trades})
@@ -116,6 +130,8 @@ def main():
     tick = markets.futures_tickers()
     perps = {t["symbol"].upper() for t in tick}
     assets += markets.metal_universe(tick)
+    assets = [a for a in assets if a.kind == "metal" and a.source == "kraken_futures"
+              or a.kind == "crypto"]  # crypto_universe already applies the allowlist
     # use the perp (30 days of history) for crypto when Kraken has one
     for a in assets:
         if a.kind == "crypto":
@@ -134,14 +150,16 @@ def main():
         except Exception as e:
             log.warning("skip %s: %s", a.symbol, e)
 
-    rows = run_variants(data)
-    cols = ["min_score", "need_trend", "sl_atr", "tp_R", "trades", "per_day", "win%", "avg_R", "total_R"]
+    btc = data.get("BTC/USD")
+    regime = btc_regime(btc[0]) if btc else None
+    rows = run_variants(data, regime)
+    cols = ["min_score", "btc_align", "sl_atr", "tp_R", "trades", "per_day", "win%", "avg_R", "total_R"]
     print("\n=== VARIANTS (best average R first) ===")
     print(pd.DataFrame(rows)[cols].to_string(index=False))
-    current = next(r for r in rows if r["min_score"] == 48 and not r["need_trend"]
+    current = next(r for r in rows if r["min_score"] == 80 and not r["btc_align"]
                    and r["sl_atr"] == 1.2 and r["tp_R"] == 1.5)
     best = rows[0]
-    for name, r in (("CURRENT RULES", current), ("BEST VARIANT", best)):
+    for name, r in (("SCORE>=80 BASELINE", current), ("BEST VARIANT", best)):
         print(f"\n=== {name}: {r['trades']} trades, win {r['win%']}%, avg {r['avg_R']}R ===")
         print(breakdown(r["_trades"], "sym").to_string())
         print(breakdown(r["_trades"], "dir").to_string())
