@@ -51,7 +51,7 @@ def fetch_all(assets):
             candles[a.id] = df
         except Exception as e:
             log.warning("candles failed for %s: %s", a.symbol, e)
-        time.sleep(0.5 if a.source == "kraken_spot" else 0.1)  # Kraken public rate limit
+        time.sleep({"kraken_spot": 0.5, "yahoo": 1.5}.get(a.source, 0.2))  # stay under rate limits
     return candles
 
 
@@ -89,6 +89,9 @@ def run():
 
     assets = build_universe(state)
     log.info("scanning %d markets", len(assets))
+    for a in assets:
+        if a.kind == "metal":
+            log.info("  metal %-28s via %s (%s)", a.symbol, a.source, a.ref)
     candles = fetch_all(assets)
 
     # 1) results of earlier signals

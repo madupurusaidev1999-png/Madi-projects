@@ -7,7 +7,7 @@ hours up to one day.
 from . import config
 from .indicators import adx, atr, ema, macd_hist, resample, rsi
 
-TRIGGERS = ("ema_cross", "macd_flip", "rsi_pullback", "breakout")
+TRIGGERS = ("ema_cross", "macd_flip", "rsi_pullback", "breakout", "trend_pullback")
 
 
 def _crossed(a, b, bars, up=True):
@@ -69,10 +69,17 @@ def analyze(df15, trigger_stats=None):
         bias_ok = (e21_4h.iloc[-1] > e21_4h.iloc[-3]) if up else (e21_4h.iloc[-1] < e21_4h.iloc[-3])
 
         fired = []
-        if _crossed(e9, e21, 3, up):
+        if _crossed(e9, e21, 4, up):
             fired.append("ema_cross")
-        if _crossed(mh, mh * 0, 3, up):
+        if _crossed(mh, mh * 0, 4, up):
             fired.append("macd_flip")
+        # trend pullback: price dipped to the 15m EMA21 in the last hour and bounced
+        if trend_ok:
+            e21_now = e21.iloc[-1]
+            if up and df15["low"].iloc[-4:].min() <= e21_now * 1.001 and price > e9.iloc[-1] > e21_now:
+                fired.append("trend_pullback")
+            if not up and df15["high"].iloc[-4:].max() >= e21_now * 0.999 and price < e9.iloc[-1] < e21_now:
+                fired.append("trend_pullback")
         rmin, rmax = r15.iloc[-7:-1].min(), r15.iloc[-7:-1].max()
         if up and rmin < 42 and r15.iloc[-1] > 45 and r15.iloc[-1] > r15.iloc[-2]:
             fired.append("rsi_pullback")
@@ -104,6 +111,7 @@ def analyze(df15, trigger_stats=None):
         nice = {"ema_cross": f"15m EMA 9/21 cross {'up' if up else 'down'}",
                 "macd_flip": f"15m MACD turned {'bullish' if up else 'bearish'}",
                 "rsi_pullback": "15m RSI pullback entry",
+                "trend_pullback": f"Pulled back to 15m EMA21 and {'bounced' if up else 'rejected'}",
                 "breakout": f"15m breakout {'above' if up else 'below'} 5h range"}
         reasons.append(", ".join(nice[t] for t in fired))
 

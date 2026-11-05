@@ -19,7 +19,10 @@ log = logging.getLogger(__name__)
 
 KRAKEN = "https://api.kraken.com/0/public"
 KRAKEN_FUT = "https://futures.kraken.com"
-YAHOO = "https://query1.finance.yahoo.com/v8/finance/chart/"
+YAHOO_HOSTS = [
+    "https://query1.finance.yahoo.com/v8/finance/chart/",
+    "https://query2.finance.yahoo.com/v8/finance/chart/",
+]
 
 SYMBOL_ALIASES = {"XBT": "BTC", "XDG": "DOGE"}
 
@@ -179,7 +182,16 @@ def candles_15m(asset):
         return _frame(rows)
 
     if asset.source == "yahoo":
-        data = get(YAHOO + asset.ref, params={"interval": "15m", "range": "10d"})
+        data, err = None, None
+        for host in YAHOO_HOSTS:  # Yahoo rate-limits shared IPs; try the mirror too
+            try:
+                data = get(host + asset.ref, params={"interval": "15m", "range": "10d"}, retries=1)
+                break
+            except Exception as e:
+                err = e
+                time.sleep(2)
+        if data is None:
+            raise err
         r = data["chart"]["result"][0]
         q = r["indicators"]["quote"][0]
         rows = [
