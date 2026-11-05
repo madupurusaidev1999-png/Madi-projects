@@ -1,0 +1,6 @@
+requests>=2.31
+pandas>=2.2
+numpy>=1.26
+feedparser>=6.0
+vaderSentiment>=3.3.2
+pytest>=8.0
