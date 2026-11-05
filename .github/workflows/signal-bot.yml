@@ -1,7 +1,7 @@
 name: Signal Bot
 
 # How it stays on 24/7:
-#   * a "loop" run scans every 5 minutes for ~5h40m, then starts the next loop run itself
+#   * a "loop" run scans every 5 minutes for ~2h, then starts the next loop run itself
 #   * the cron below is only a backup that restarts the chain if it ever stops
 #     (the concurrency group makes sure only one loop runs at a time)
 on:
@@ -27,7 +27,7 @@ permissions:
 jobs:
   scan:
     runs-on: ubuntu-latest
-    timeout-minutes: 355
+    timeout-minutes: 135
     defaults:
       run:
         working-directory: signal-bot
@@ -63,9 +63,9 @@ jobs:
         if: env.MODE == 'scan'
         run: python -m bot.main
 
-      - name: Scan every 5 minutes (~5h40m)
+      - name: Scan every 5 minutes (~2h)
         if: env.MODE == 'loop'
-        run: python -u -m bot.main --loop 340
+        run: python -u -m bot.main --loop 115
 
       - name: Save bot memory
         if: always() && env.MODE != 'test'
