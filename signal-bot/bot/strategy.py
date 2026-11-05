@@ -5,6 +5,8 @@ removes up to config.SENTIMENT_MAX_POINTS. Trades are meant to last a few
 hours up to one day.
 """
 from . import config
+import pandas as pd
+
 from .indicators import adx, atr, ema, macd_hist, resample, rsi
 
 TRIGGERS = ("ema_cross", "macd_flip", "rsi_pullback", "breakout", "trend_pullback")
@@ -184,3 +186,11 @@ def grade(score):
     if score >= config.GRADE_C:
         return "C"
     return None
+
+
+def btc_regime(btc):
+    """+1 / -1 per 15m bar: BTC 4H EMA21 rising or falling (completed 4H bars only)."""
+    e = ema(resample(btc, "4h")["close"], 21)
+    reg = (e > e.shift(2)).map({True: 1, False: -1})
+    reg.index = reg.index + pd.Timedelta(hours=4)  # known only once the 4H bar closes
+    return reg.reindex(btc.index, method="ffill").fillna(0)

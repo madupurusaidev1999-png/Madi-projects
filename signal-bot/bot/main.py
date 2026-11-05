@@ -19,7 +19,7 @@ from datetime import datetime, timedelta, timezone
 from . import config, markets, telegram, tracker
 from .markets import Asset
 from .sentiment import Sentiment
-from .strategy import analyze, apply_sentiment, grade
+from .strategy import analyze, apply_sentiment, btc_regime, grade
 
 log = logging.getLogger("bot")
 
@@ -120,6 +120,9 @@ def run():
     # 3) signals
     cands = []
     by_id = {a.id: a for a in assets}
+    btc_df = next((candles[a.id] for a in assets if a.symbol == "BTC/USD" and a.id in candles), None)
+    btc_dir = int(btc_regime(btc_df).iloc[-1]) if btc_df is not None and len(btc_df) > 400 else 0
+    log.info("BTC 4H trend: %s", {1: "up (alts: longs only)", -1: "down (alts: shorts only)"}.get(btc_dir, "unknown"))
     lens = sorted(len(df) for df in candles.values())
     log.info("candles fetched for %d/%d markets; bars min/median/max = %s/%s/%s",
              len(candles), len(assets), lens[0] if lens else 0,
@@ -130,11 +133,15 @@ def run():
                      df.index[-1].strftime("%H:%M"), df["close"].iloc[-1])
         for sig in analyze(df, state.get("trigger_stats")):
             sig = apply_sentiment(sig, by_id[aid], sent)
-            sig["grade"] = grade(sig["score"])
+            sig["grade"] = grade(sig["score"]) if sig["tech_score"] >= config.MIN_TECH_SCORE else None
             sp = spot.get(by_id[aid].sentiment_key) if by_id[aid].kind == "metal" else None
             if sp and abs(sp - sig["entry"]) / sig["entry"] * 100 <= config.MAX_SPOT_BASIS_PCT:
                 sig["shift"] = sp - sig["entry"]  # move levels onto the spot price
-            cands.append((by_id[aid], sig))
+            a = by_id[aid]
+            if config.BTC_TREND_FILTER and btc_dir and a.kind == "crypto" and a.symbol != "BTC/USD":
+                if (1 if sig["direction"] == "LONG" else -1) != btc_dir:
+                    continue  # don't fight BTC's 4H trend
+            cands.append((a, sig))
     log.info("%d candidate setups", len(cands))
     for a, s in sorted(cands, key=lambda c: c[1]["score"], reverse=True)[:10]:
         log.info("  %-28s %-5s %5.1f %s", a.symbol, s["direction"], s["score"], s["grade"])

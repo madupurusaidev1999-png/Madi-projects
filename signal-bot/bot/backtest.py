@@ -15,7 +15,7 @@ import time
 import pandas as pd
 
 from . import config, markets
-from .strategy import analyze
+from .strategy import analyze, btc_regime
 
 log = logging.getLogger("backtest")
 
@@ -73,15 +73,6 @@ VARIANTS = {
     "tp_r": [1.0, 1.5],
 }
 FEE_PCT = 0.10  # round-trip trading cost (fees + spread), in % of price
-
-
-def btc_regime(btc):
-    """+1 / -1 per 15m bar: BTC 4H EMA21 rising or falling (completed 4H bars only)."""
-    from .indicators import ema, resample
-    e = ema(resample(btc, "4h")["close"], 21)
-    reg = (e > e.shift(2)).map({True: 1, False: -1})
-    reg.index = reg.index + pd.Timedelta(hours=4)  # known only once the 4H bar closes
-    return reg.reindex(btc.index, method="ffill").fillna(0)
 
 
 def run_variants(data, regime=None):

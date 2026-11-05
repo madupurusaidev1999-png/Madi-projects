@@ -40,7 +40,7 @@ Headlines are scored for bullish or bearish tone, and newer headlines count more
 - **Skip it** if the stop is hit before you get in.
 - **Close it after 24h** if neither TP nor SL has been hit. The message shows the exact time.
 
-Grades: **A** ≥ 75, **B** ≥ 60, **C** ≥ 48 (lower confidence; sent only when nothing better exists).
+Only setups with a technical score of **85+** are sent (**A** ≥ 90, **B** ≥ 85). For altcoins, the trade must also go the same way as **BTC's 4H trend**. These cutoffs came from a 30-day backtest (`python -m bot.backtest`, or the `backtest` option in the workflow): lower scores lost money once trading costs were included. If nothing qualifies, no signal is sent.
 
 ## Setup (about 10 minutes, all from your phone or browser)
 

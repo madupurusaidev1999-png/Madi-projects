@@ -47,15 +47,19 @@ YAHOO_FALLBACK = False
 MIN_CANDLES_15M = 200
 MAX_DATA_AGE_HOURS = 3          # skip markets that are closed / stale
 
-GRADE_A = 75
-GRADE_B = 60
-GRADE_C = 48                    # lowest score ever sent
-URGENT_SCORE = 80               # sent immediately on any 5-minute scan
+# Backtest (30 days, majors + metals, with costs) showed only score >= 85 setups that
+# follow BTC's 4H trend come out around break-even; lower scores lost money.
+MIN_TECH_SCORE = 85             # technical score needed before sentiment is added
+GRADE_A = 90
+GRADE_B = 85
+GRADE_C = 85                    # lowest score ever sent (no grade C any more)
+URGENT_SCORE = 92               # sent immediately on any 5-minute scan
+BTC_TREND_FILTER = True         # alts: long only if BTC 4H trend is up, short only if down
 
 SCAN_EVERY_MIN = 5              # scan interval in loop mode
 BATCH_EVERY_MIN = 15            # regular signal batch interval
 MAX_PER_BATCH = 3
-MIN_PER_BATCH = 1               # if nothing is grade B+, send the best C (if any)
+MIN_PER_BATCH = 0               # never force a signal: no setup = no message
 MAX_PER_HOUR = 6                # hard cap so your phone isn't flooded
 COOLDOWN_HOURS = 4              # don't repeat the same pair+direction
 SIGNAL_EXPIRY_HOURS = 24        # signals are intraday: few hours up to 1 day
