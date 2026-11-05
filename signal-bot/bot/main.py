@@ -154,7 +154,8 @@ def run():
                 "candle_time": sig["candle_time"], "sent_at": now.isoformat(), "status": "open",
                 "shift": sig.get("shift", 0.0), "name": telegram.display_name(asset),
             })
-    log.info("sent %d signal(s)%s", len(picked), " (urgent)" if urgent else "")
+    log.info("sent %d signal(s)%s%s", len(picked), " (urgent)" if urgent else "",
+             "".join(f" | {a.symbol} {s['direction']} {s['score']:.0f}" for a, s in picked))
 
     # 4) daily report
     text, report = tracker.daily_report(state, now)
