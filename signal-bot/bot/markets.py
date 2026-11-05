@@ -68,6 +68,8 @@ def crypto_universe():
         base = SYMBOL_ALIASES.get(base, base)
         if base in config.STABLECOINS or base in config.FIAT:
             continue
+        if not config.ALLOW_ALL_CRYPTO and base not in config.CRYPTO_ALLOWLIST and base not in config.GOLD_TOKENS:
+            continue
         usd[key] = base
 
     volumes = {}
@@ -106,7 +108,7 @@ def crypto_universe():
         (a for a in assets if a.kind == "crypto" and a.volume_usd >= config.MIN_USD_VOLUME_24H),
         key=lambda a: a.volume_usd, reverse=True,
     )[: config.TOP_CRYPTO]
-    return crypto + gold
+    return crypto  # gold comes from the XAU perp + spot price, not PAXG/XAUT tokens
 
 
 def futures_tickers():

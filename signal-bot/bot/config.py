@@ -10,6 +10,16 @@ TIMEZONE = os.getenv("BOT_TIMEZONE", "UTC")
 
 # ---------- Universe ----------
 TOP_CRYPTO = 40                 # scan the N most-traded USD pairs on Kraken
+
+# Only these coins are scanned (pairs offered on Kraken Prop / most prop firms).
+# Edit this list to match exactly what your Kraken Prop account shows.
+# Set BOT_ALLOW_ALL_CRYPTO=1 to scan every liquid Kraken pair instead.
+CRYPTO_ALLOWLIST = {
+    "BTC", "ETH", "SOL", "XRP", "DOGE", "ADA", "AVAX", "LINK", "LTC", "DOT", "BCH",
+    "TRX", "XLM", "UNI", "AAVE", "NEAR", "SUI", "HBAR", "ATOM", "ETC", "FIL", "APT",
+    "ARB", "OP", "INJ", "TON", "SHIB", "PEPE", "BNB",
+}
+ALLOW_ALL_CRYPTO = os.getenv("BOT_ALLOW_ALL_CRYPTO") == "1"
 MIN_USD_VOLUME_24H = 1_000_000  # ignore illiquid coins below this 24h volume
 
 STABLECOINS = {
