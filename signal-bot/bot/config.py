@@ -48,6 +48,8 @@ MIN_PER_BATCH = 1               # if nothing is grade B+, send the best C (if an
 MAX_PER_HOUR = 6                # hard cap so your phone isn't flooded
 COOLDOWN_HOURS = 4              # don't repeat the same pair+direction
 SIGNAL_EXPIRY_HOURS = 24        # signals are intraday: few hours up to 1 day
+ENTRY_VALID_MINUTES = 60        # don't open the trade after this
+ENTRY_ZONE_R = 0.3              # don't chase: entry only within +/-0.3R of the signal price
 
 SL_ATR_MULT = 1.2               # stop distance in 1h ATRs (min)
 SL_ATR_MAX = 2.5                # cap on stop distance in 1h ATRs

@@ -1,7 +1,7 @@
 """Telegram delivery + message formatting."""
 import html
 import logging
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from zoneinfo import ZoneInfo
 
 from . import config
@@ -50,6 +50,12 @@ def format_signal(sig, asset, urgent=False):
     def pct(x):
         return f"{(x - e) / e * 100:+.2f}%"
 
+    now = datetime.now(timezone.utc)
+    entry_until = local_time(now + timedelta(minutes=config.ENTRY_VALID_MINUTES))
+    close_by = local_time(now + timedelta(hours=config.SIGNAL_EXPIRY_HOURS))
+    zone = sig["risk"] * config.ENTRY_ZONE_R
+    # "chase limit": the worst price you should still enter at
+    chase = e + zone if long_ else e - zone
     head = "🟢 LONG / BUY" if long_ else "🔴 SHORT / SELL"
     badge = {"A": "⭐ Grade A", "B": "Grade B", "C": "Grade C (lower confidence)"}[sig["grade"]]
     lines = [
@@ -61,7 +67,13 @@ def format_signal(sig, asset, urgent=False):
         f"Stop:  <code>{fmt_price(sig['sl'])}</code>  ({pct(sig['sl'])})",
         f"TP1:   <code>{fmt_price(sig['tp1'])}</code>  ({pct(sig['tp1'])})",
         f"TP2:   <code>{fmt_price(sig['tp2'])}</code>  ({pct(sig['tp2'])})",
-        f"R:R 1:{config.TP1_R} / 1:{config.TP2_R} · hold: a few hours, max {config.SIGNAL_EXPIRY_HOURS}h",
+        f"R:R 1:{config.TP1_R} / 1:{config.TP2_R}",
+        "",
+        "<b>⏳ Validity</b>",
+        f"• Enter before <b>{entry_until}</b>, otherwise skip it",
+        f"• Don't enter {'above' if long_ else 'below'} <code>{fmt_price(chase)}</code> (price already ran)",
+        f"• Invalid if stop <code>{fmt_price(sig['sl'])}</code> is hit before you enter",
+        f"• If neither TP nor SL is hit, close by <b>{close_by}</b>",
         "",
         "<b>Why:</b>",
     ]

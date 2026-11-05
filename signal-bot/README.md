@@ -34,6 +34,12 @@ Headlines are scored for bullish or bearish tone, and newer headlines count more
 5. **Sentiment**: news and social mood moves the score by up to ±15 points.
 6. **Levels**: the stop sits beyond the recent swing (1.2–2.5 × 1H ATR). TP1 is 1.5R and TP2 is 2.5R.
 
+**Validity**: every signal shows when it stops being valid:
+- **Enter within 60 minutes**, otherwise skip it.
+- **Don't chase**: don't enter if price has already run more than 0.3R past the signal price. The message shows that price.
+- **Skip it** if the stop is hit before you get in.
+- **Close it after 24h** if neither TP nor SL has been hit. The message shows the exact time.
+
 Grades: **A** ≥ 75, **B** ≥ 60, **C** ≥ 48 (lower confidence; sent only when nothing better exists).
 
 ## Setup (about 10 minutes, all from your phone or browser)

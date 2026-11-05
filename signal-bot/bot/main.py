@@ -63,11 +63,25 @@ def select(cands, state, now, batch_due):
     blocked |= {(s["asset"]["id"], d) for s in state["signals"]
                 if s["status"] in ("open", "tp1") for d in ("LONG", "SHORT")}
 
+    # PAXG, XAUT and the gold perp are the same trade: one signal per underlying
+    def underlying(asset):
+        return asset.sentiment_key if asset.kind == "metal" else asset.id
+
+    open_under = {s["asset"].get("sentiment_key") for s in state["signals"]
+                  if s["status"] in ("open", "tp1") and s["asset"].get("kind") == "metal"}
+    recent_under = {(s["asset"].get("sentiment_key"), s["direction"]) for s in recent
+                    if s["asset"].get("kind") == "metal"}
+    # prefer the Kraken perp for metals when scores tie
+    order = sorted(cands, key=lambda c: (c[1]["score"], c[0].source == "kraken_futures"), reverse=True)
+
     pool, used = [], set()
-    for asset, sig in sorted(cands, key=lambda c: c[1]["score"], reverse=True):
-        if (asset.id, sig["direction"]) in blocked or asset.id in used or not sig["grade"]:
+    for asset, sig in order:
+        u = underlying(asset)
+        if (asset.id, sig["direction"]) in blocked or u in used or not sig["grade"]:
             continue
-        used.add(asset.id)
+        if asset.kind == "metal" and (u in open_under or (u, sig["direction"]) in recent_under):
+            continue
+        used.add(u)
         pool.append((asset, sig))
 
     last_hour = sum(1 for s in state["signals"]
@@ -111,7 +125,7 @@ def run():
              lens[len(lens) // 2] if lens else 0, lens[-1] if lens else 0)
     for aid, df in candles.items():
         if len(df):
-            log.info("  %-28s bars=%d last=%s close=%.6g", by_id[aid].symbol, len(df),
+            log.debug("  %-28s bars=%d last=%s close=%.6g", by_id[aid].symbol, len(df),
                      df.index[-1].strftime("%H:%M"), df["close"].iloc[-1])
         for sig in analyze(df, state.get("trigger_stats")):
             sig = apply_sentiment(sig, by_id[aid], sent)

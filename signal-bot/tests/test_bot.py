@@ -101,11 +101,15 @@ def test_end_to_end_offline(tmp_path, monkeypatch, capsys):
     monkeypatch.setattr(config, "TELEGRAM_BOT_TOKEN", "")
     assets = [Asset(f"kraken_spot:{i}", f"C{i}/USD", "crypto", "kraken_spot", str(i), f"C{i}", "Kraken Spot")
               for i in range(12)]
-    assets.append(Asset("yahoo:GC=F", "Gold (XAU/USD)", "metal", "yahoo", "GC=F", "GOLD", "ref"))
-    monkeypatch.setattr(markets, "crypto_universe", lambda: assets[:-1])
-    monkeypatch.setattr(markets, "metal_universe", lambda: assets[-1:])
+    gold = [Asset("kraken_futures:PF_XAUTUSD", "Gold perp", "metal", "kraken_futures", "PF_XAUTUSD", "GOLD", "Kraken"),
+            Asset("kraken_spot:PAXGUSD", "PAXG/USD", "metal", "kraken_spot", "PAXGUSD", "GOLD", "Kraken")]
+    monkeypatch.setattr(markets, "crypto_universe", lambda: assets)
+    monkeypatch.setattr(markets, "metal_universe", lambda: gold)
     data = {a.id: make_candles(0.0008 * (1 if i % 2 else -1), seed=i, kick=0.006 * (1 if i % 2 else -1))
             for i, a in enumerate(assets)}
+    data.update({g.id: make_candles(0.0008, seed=1, kick=0.006) for g in gold})  # identical gold setups
+    monkeypatch.setattr(config, "MAX_PER_BATCH", 20)
+    monkeypatch.setattr(config, "MAX_PER_HOUR", 20)
     monkeypatch.setattr(markets, "candles_15m", lambda a: data[a.id])
     monkeypatch.setattr(main.time, "sleep", lambda s: None)
     monkeypatch.setattr(Sentiment, "_fetch", lambda self, url: [])
@@ -116,7 +120,8 @@ def test_end_to_end_offline(tmp_path, monkeypatch, capsys):
     st = tracker.load_state()
     assert st["last_batch"] and 1 <= len(st["signals"]) <= config.MAX_PER_BATCH
     out = capsys.readouterr().out
-    assert "Entry:" in out and "TP1:" in out
+    assert "Entry:" in out and "TP1:" in out and "Enter before" in out and "close by" in out
+    assert sum(1 for s in st["signals"] if s["asset"]["sentiment_key"] == "GOLD") <= 1
 
     # an immediate second run is not a batch: only urgent signals, and no repeats
     n = len(st["signals"])
