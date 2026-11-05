@@ -145,6 +145,9 @@ def analyze(df15, trigger_stats=None):
             "triggers": fired,
             "reasons": reasons,
             "candle_time": df15.index[-1].isoformat(),
+            # raw features, used by the backtester and the quality filter
+            "feat": {"trend_ok": bool(trend_ok), "bias_ok": bool(bias_ok), "adx": adx1h,
+                     "rsi": rv, "vol_ratio": vol_ratio, "atr1h": atr1h, "swing_dist": swing_dist},
         })
     return out
 

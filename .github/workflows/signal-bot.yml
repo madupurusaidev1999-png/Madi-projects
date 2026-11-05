@@ -10,14 +10,14 @@ on:
   workflow_dispatch:
     inputs:
       mode:
-        description: "loop = run continuously, scan = one scan, test = Telegram test message"
+        description: "loop = run continuously, scan = one scan, test = Telegram test, backtest = test rules on 30 days of history"
         default: loop
         type: choice
-        options: [loop, scan, test]
+        options: [loop, scan, test, backtest]
 
 concurrency:
   # one loop at a time; manual scan/test runs don't wait behind the loop
-  group: signal-bot-${{ (inputs.mode == 'scan' || inputs.mode == 'test') && inputs.mode || 'loop' }}
+  group: signal-bot-${{ (inputs.mode && inputs.mode != 'loop') && inputs.mode || 'loop' }}
   cancel-in-progress: false
 
 permissions:
@@ -52,12 +52,16 @@ jobs:
         run: python -m bot.main --test
 
       - name: Restore bot memory
-        if: env.MODE != 'test'
+        if: env.MODE == 'loop' || env.MODE == 'scan'
         uses: actions/cache/restore@v4
         with:
           path: signal-bot/state
           key: bot-state-${{ github.run_id }}
           restore-keys: bot-state-
+
+      - name: Backtest
+        if: env.MODE == 'backtest'
+        run: python -u -m bot.backtest
 
       - name: Scan once
         if: env.MODE == 'scan'
@@ -68,14 +72,14 @@ jobs:
         run: python -u -m bot.main --loop 115
 
       - name: Save bot memory
-        if: always() && env.MODE != 'test'
+        if: always() && (env.MODE == 'loop' || env.MODE == 'scan')
         uses: actions/cache/save@v4
         with:
           path: signal-bot/state
           key: bot-state-${{ github.run_id }}-${{ github.run_attempt }}
 
       - name: Commit daily report
-        if: always() && env.MODE != 'test'
+        if: always() && (env.MODE == 'loop' || env.MODE == 'scan')
         run: |
           if [ -n "$(git status --porcelain reports 2>/dev/null)" ]; then
             git config user.name "signal-bot"
