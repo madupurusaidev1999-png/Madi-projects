@@ -54,6 +54,9 @@ GRADE_A = 90
 GRADE_B = 85
 GRADE_C = 85                    # lowest score ever sent (no grade C any more)
 URGENT_SCORE = 92               # sent immediately on any 5-minute scan
+# Don't chase: skip setups where price is already more than this many 1H ATRs
+# beyond the 1H EMA20 in the trade direction (backtest: late entries lost most).
+MAX_EXTENSION_ATR = 1.0
 BTC_TREND_FILTER = True         # alts: long only if BTC 4H trend is up, short only if down
 
 SCAN_EVERY_MIN = 5              # scan interval in loop mode

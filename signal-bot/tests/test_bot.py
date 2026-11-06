@@ -110,6 +110,7 @@ def test_end_to_end_offline(tmp_path, monkeypatch, capsys):
     data.update({g.id: make_candles(0.0008, seed=1, kick=0.006) for g in gold})  # identical gold setups
     monkeypatch.setattr(config, "MAX_PER_BATCH", 20)
     monkeypatch.setattr(config, "MAX_PER_HOUR", 20)
+    monkeypatch.setattr(config, "MAX_EXTENSION_ATR", 99)  # synthetic data is deliberately stretched
     monkeypatch.setattr(markets, "candles_15m", lambda a: data[a.id])
     monkeypatch.setattr(main.time, "sleep", lambda s: None)
     monkeypatch.setattr(Sentiment, "_fetch", lambda self, url: [])
@@ -147,3 +148,11 @@ def test_export_csv(tmp_path):
     rows = list(csv.DictReader(open(path)))
     assert [r["result"] for r in rows] == ["OPEN", "WON (TP2)", "LOST (stop-loss)"]
     assert rows[1]["entry"] == "105" and rows[2]["side"] == "SELL" and rows[2]["result_R"] == "-1.0"
+
+
+def test_extension_filter_blocks_chasing(monkeypatch, tmp_path):
+    """A setup far beyond the 1H EMA20 must not get a grade."""
+    sig = find_signal("LONG", 0.0008)
+    assert "ext" in sig["feat"]
+    ok = sig["tech_score"] >= 0 and sig["feat"]["ext"] < config.MAX_EXTENSION_ATR
+    assert ok == (sig["feat"]["ext"] < 1.0)

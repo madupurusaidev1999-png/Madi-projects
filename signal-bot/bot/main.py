@@ -133,7 +133,9 @@ def run():
                      df.index[-1].strftime("%H:%M"), df["close"].iloc[-1])
         for sig in analyze(df, state.get("trigger_stats")):
             sig = apply_sentiment(sig, by_id[aid], sent)
-            sig["grade"] = grade(sig["score"]) if sig["tech_score"] >= config.MIN_TECH_SCORE else None
+            ok = (sig["tech_score"] >= config.MIN_TECH_SCORE
+                  and sig["feat"].get("ext", 0) < config.MAX_EXTENSION_ATR)
+            sig["grade"] = grade(sig["score"]) if ok else None
             sp = spot.get(by_id[aid].sentiment_key) if by_id[aid].kind == "metal" else None
             if sp and abs(sp - sig["entry"]) / sig["entry"] * 100 <= config.MAX_SPOT_BASIS_PCT:
                 sig["shift"] = sp - sig["entry"]  # move levels onto the spot price
