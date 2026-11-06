@@ -174,15 +174,20 @@ def run():
             f.write(md)
 
     tracker.save_state(state)
+    tracker.export_csv(state, os.path.join(config.REPORTS_DIR, "signals.csv"))
 
 
 def main():
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
     p = argparse.ArgumentParser()
     p.add_argument("--test", action="store_true", help="send a Telegram test message")
+    p.add_argument("--export", action="store_true", help="only write reports/signals.csv")
     p.add_argument("--loop", type=float, metavar="MINUTES",
                    help="keep scanning every SCAN_EVERY_MIN minutes for this long")
     args = p.parse_args()
+    if args.export:
+        tracker.export_csv(tracker.load_state(), os.path.join(config.REPORTS_DIR, "signals.csv"))
+        return
     if args.test:
         ok = telegram.send("✅ Signal bot is connected. Signals will arrive here.")
         sys.exit(0 if ok else 1)

@@ -130,3 +130,20 @@ def test_end_to_end_offline(tmp_path, monkeypatch, capsys):
     ids = [(s["asset"]["id"], s["direction"]) for s in st2["signals"]]
     assert len(ids) == len(set(ids))
     assert all(s["score"] >= config.URGENT_SCORE for s in st2["signals"][n:])
+
+
+def test_export_csv(tmp_path):
+    import csv
+    base = {"asset": {"id": "a"}, "symbol": "BTC/USD", "name": "BTC/USD", "grade": "A", "score": 91,
+            "entry": 100.0, "sl": 98.0, "tp1": 103.0, "tp2": 105.0, "triggers": []}
+    state = {"signals": [
+        dict(base, direction="SHORT", sent_at="2026-11-05T10:00:00+00:00", status="sl", result_r=-1.0,
+             closed_at="2026-11-05T11:00:00+00:00"),
+        dict(base, direction="LONG", sent_at="2026-11-05T12:00:00+00:00", status="tp2", result_r=2.5, shift=5.0),
+        dict(base, direction="LONG", sent_at="2026-11-05T13:00:00+00:00", status="open"),
+    ]}
+    path = tmp_path / "signals.csv"
+    tracker.export_csv(state, str(path))
+    rows = list(csv.DictReader(open(path)))
+    assert [r["result"] for r in rows] == ["OPEN", "WON (TP2)", "LOST (stop-loss)"]
+    assert rows[1]["entry"] == "105" and rows[2]["side"] == "SELL" and rows[2]["result_R"] == "-1.0"

@@ -3,6 +3,7 @@
 Results feed back into strategy.trigger_weight(), so triggers that work
 get more weight over time and ones that fail get less.
 """
+import csv
 import json
 import logging
 import os
@@ -132,3 +133,29 @@ def daily_report(state, now=None):
         md.append(f"| {s['sent_at'][11:16]} | {s['symbol']} | {s['direction']} | {s['grade']} | "
                   f"{s['score']:.0f} | {s['entry']:.6g} | {s['status']} {s.get('result_r', '')} |")
     return text, (day, "\n".join(md) + "\n")
+
+
+RESULT_LABEL = {"open": "OPEN", "tp1": "WON (TP1 hit, still running)", "tp2": "WON (TP2)",
+                "tp1_be": "WON (TP1, rest closed at entry)", "tp1_done": "WON (TP1)",
+                "sl": "LOST (stop-loss)", "expired": "EXPIRED"}
+
+
+def export_csv(state, path):
+    """All signals with their outcome, newest first, for opening in Excel / Google Sheets."""
+    os.makedirs(os.path.dirname(path) or ".", exist_ok=True)
+    rows = sorted(state.get("signals", []), key=lambda s: s["sent_at"], reverse=True)
+    with open(path, "w", newline="") as f:
+        w = csv.writer(f)
+        w.writerow(["sent_utc", "pair", "side", "grade", "score", "entry", "stop_loss", "tp1", "tp2",
+                    "result", "result_R", "closed_utc"])
+        for s in rows:
+            sh = s.get("shift", 0.0)
+            r = s.get("result_r")
+            label = RESULT_LABEL.get(s["status"], s["status"])
+            if s["status"] == "expired" and r is not None:
+                label = "EXPIRED (in profit)" if r > 0 else "EXPIRED (in loss)"
+            w.writerow([s["sent_at"][:16].replace("T", " "), s.get("name", s["symbol"]),
+                        "BUY" if s["direction"] == "LONG" else "SELL", s["grade"], round(s["score"]),
+                        f"{s['entry'] + sh:.8g}", f"{s['sl'] + sh:.8g}", f"{s['tp1'] + sh:.8g}",
+                        f"{s['tp2'] + sh:.8g}", label, "" if r is None else round(r, 2),
+                        (s.get("closed_at") or "")[:16].replace("T", " ")])
