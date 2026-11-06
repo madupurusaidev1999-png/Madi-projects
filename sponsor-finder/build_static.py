@@ -15,6 +15,7 @@ from pathlib import Path
 HERE = Path(__file__).parent
 DB = HERE / "sponsors.db"
 OUT = HERE / "public"
+SITE = "https://www.ukvisasponsorfinder.com"
 
 
 def export(conn):
@@ -55,6 +56,11 @@ def main():
     html = (HERE / "templates" / "index.html").read_text()
     html = html.replace("<!--SCRIPT-->", '<script>window.SF_STATIC = "data.txt";</script>')
     (OUT / "index.html").write_text(html)
+    (OUT / "privacy.html").write_text((HERE / "templates" / "privacy.html").read_text())
+    (OUT / "robots.txt").write_text(f"User-agent: *\nAllow: /\nSitemap: {SITE}/sitemap.xml\n")
+    (OUT / "sitemap.xml").write_text(
+        '<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n'
+        f"  <url><loc>{SITE}/</loc></url>\n  <url><loc>{SITE}/privacy.html</loc></url>\n</urlset>\n")
     print(f"Built public/ with {n:,} sponsors ({len(blob) / 1e6:.1f} MB data file).")
 
 

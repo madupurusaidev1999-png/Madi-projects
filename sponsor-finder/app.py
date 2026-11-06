@@ -32,6 +32,11 @@ def index():
     return render_template("index.html")
 
 
+@app.get("/privacy.html")
+def privacy():
+    return render_template("privacy.html")
+
+
 @app.get("/api/stats")
 def stats():
     c = db()
