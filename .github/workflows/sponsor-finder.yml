@@ -1,0 +1,69 @@
+name: Sponsor Finder
+
+# Rebuilds the website from the latest government data and publishes it to GitHub Pages.
+#   * the Home Office register is updated every working day, so this runs twice each weekday
+#   * Companies House data is updated monthly; it is cached and only re-downloaded when a new month starts
+#   * it also runs whenever the sponsor-finder code changes on main, or by hand from the Actions tab
+on:
+  schedule:
+    - cron: "23 10,16 * * 1-5"   # 10:23 and 16:23 UTC, Monday to Friday
+  push:
+    branches: [main]
+    paths: ["sponsor-finder/**", ".github/workflows/sponsor-finder.yml"]
+  workflow_dispatch:
+
+concurrency:
+  group: sponsor-finder-pages
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    defaults:
+      run:
+        working-directory: sponsor-finder
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Work out this month
+        id: month
+        run: echo "value=$(date -u +%Y-%m)" >> "$GITHUB_OUTPUT"
+
+      - name: Reuse this month's Companies House download
+        uses: actions/cache@v4
+        with:
+          path: sponsor-finder/ch_cache
+          key: companies-house-${{ steps.month.outputs.value }}
+
+      - name: Download the sponsor register
+        run: python update_register.py
+
+      - name: Match sponsors to Companies House
+        run: python match_companies_house.py
+
+      - name: Build the website
+        run: python build_static.py
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: sponsor-finder/public
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+    steps:
+      - id: deploy
+        uses: actions/deploy-pages@v4
