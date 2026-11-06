@@ -149,7 +149,9 @@ def analyze(df15, trigger_stats=None):
             "candle_time": df15.index[-1].isoformat(),
             # raw features, used by the backtester and the quality filter
             "feat": {"trend_ok": bool(trend_ok), "bias_ok": bool(bias_ok), "adx": adx1h,
-                     "rsi": rv, "vol_ratio": vol_ratio, "atr1h": atr1h, "swing_dist": swing_dist},
+                     "rsi": rv, "vol_ratio": vol_ratio, "atr1h": atr1h, "swing_dist": swing_dist,
+                     # how far price already ran in the trade direction, in 1H ATRs from the 1H EMA20
+                     "ext": (price - float(e20h.iloc[-1])) * direction / atr1h},
         })
     return out
 

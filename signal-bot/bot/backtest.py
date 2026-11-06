@@ -67,37 +67,66 @@ def simulate(df, i, sig, sl_mult, tp_r):
 
 
 VARIANTS = {
-    "min_score": [70, 75, 80, 85, 90],
-    "btc_align": [False, True],       # alts only in the direction of BTC's 4H trend
-    "sl_mult": [1.2, 1.8],
+    "entry": ["any", "pullback", "not_extended"],
+    "sl_mult": [1.2, 2.0, 3.0],
     "tp_r": [1.0, 1.5],
+    "max_same_dir": [99, 2],          # max open crypto trades in the same direction
 }
+MIN_SCORE = 85          # live rule
 FEE_PCT = 0.10  # round-trip trading cost (fees + spread), in % of price
 
 
-def run_variants(data, regime=None):
-    rows = []
-    for ms, ba, slm, tpr in itertools.product(*VARIANTS.values()):
-        trades = []
-        for sym, (df, setups) in data.items():
-            busy_until = -1
-            for i, sig in setups:
-                if i <= busy_until or sig["score"] < ms:
+def entry_ok(sig, style):
+    if style == "pullback":
+        return bool({"trend_pullback", "rsi_pullback"} & set(sig["triggers"]))
+    if style == "not_extended":
+        return sig["feat"].get("ext", 0) < 1.0
+    return True
+
+
+def run_variants(data, regime=None, since=None):
+    """Simulate every variant chronologically across all markets (so the
+    same-direction cap works like the live bot)."""
+    events = []
+    for sym, (df, setups) in data.items():
+        is_metal = sym.startswith(("Gold", "Silver", "Copper"))
+        for i, sig in setups:
+            if sig["score"] < MIN_SCORE:
+                continue
+            if since is not None and df.index[i] < since:
+                continue
+            if regime is not None and not is_metal and not sym.startswith("BTC/"):
+                if regime.asof(df.index[i]) != (1 if sig["direction"] == "LONG" else -1):
                     continue
-                if ba and regime is not None and not sym.startswith(("Gold", "Silver", "Copper")) \
-                        and not sym.startswith("BTC/"):
-                    want = 1 if sig["direction"] == "LONG" else -1
-                    if regime.asof(df.index[i]) != want:
-                        continue
-                r, exit_i, risk = simulate(df, i, sig, slm, tpr)
-                r -= FEE_PCT / 100 * sig["entry"] / risk  # costs, expressed in R
-                busy_until = exit_i
-                trades.append((sym, sig["direction"], r, tuple(sig["triggers"])))
+            events.append((df.index[i], sym, i, sig, is_metal))
+    events.sort(key=lambda e: e[0])
+
+    rows = []
+    for style, slm, tpr, cap in itertools.product(*VARIANTS.values()):
+        busy_until = {}          # sym -> exit time
+        open_trades = []         # (exit time, direction) for crypto
+        trades = []
+        for t, sym, i, sig, is_metal in events:
+            if not entry_ok(sig, style):
+                continue
+            if busy_until.get(sym) is not None and t <= busy_until[sym]:
+                continue
+            open_trades = [o for o in open_trades if o[0] > t]
+            if not is_metal and sum(1 for o in open_trades if o[1] == sig["direction"]) >= cap:
+                continue
+            df = data[sym][0]
+            r, exit_i, risk = simulate(df, i, sig, slm, tpr)
+            r -= FEE_PCT / 100 * sig["entry"] / risk
+            busy_until[sym] = df.index[exit_i]
+            if not is_metal:
+                open_trades.append((df.index[exit_i], sig["direction"]))
+            trades.append((sym, sig["direction"], r, tuple(sig["triggers"])))
         if not trades:
             continue
-        rs = pd.Series([t[2] for t in trades])
-        rows.append({"min_score": ms, "btc_align": ba, "sl_atr": slm, "tp_R": tpr,
-                     "trades": len(trades), "per_day": round(len(trades) / DAYS, 1),
+        rs = pd.Series([x[2] for x in trades])
+        days = DAYS if since is None else max(1, (events[-1][0] - since).days or 1)
+        rows.append({"entry": style, "sl_atr": slm, "tp_R": tpr, "max_same_dir": cap,
+                     "trades": len(trades), "per_day": round(len(trades) / days, 1),
                      "win%": round((rs > 0).mean() * 100, 1), "avg_R": round(rs.mean(), 3),
                      "total_R": round(rs.sum(), 1), "_trades": trades})
     return sorted(rows, key=lambda r: r["avg_R"], reverse=True)
@@ -143,18 +172,16 @@ def main():
 
     btc = data.get("BTC/USD")
     regime = btc_regime(btc[0]) if btc else None
-    rows = run_variants(data, regime)
-    cols = ["min_score", "btc_align", "sl_atr", "tp_R", "trades", "per_day", "win%", "avg_R", "total_R"]
-    print("\n=== VARIANTS (best average R first) ===")
-    print(pd.DataFrame(rows)[cols].to_string(index=False))
-    current = next(r for r in rows if r["min_score"] == 80 and not r["btc_align"]
-                   and r["sl_atr"] == 1.2 and r["tp_R"] == 1.5)
-    best = rows[0]
-    for name, r in (("SCORE>=80 BASELINE", current), ("BEST VARIANT", best)):
-        print(f"\n=== {name}: {r['trades']} trades, win {r['win%']}%, avg {r['avg_R']}R ===")
-        print(breakdown(r["_trades"], "sym").to_string())
-        print(breakdown(r["_trades"], "dir").to_string())
-        print(breakdown(r["_trades"], "trig").to_string())
+    cols = ["entry", "sl_atr", "tp_R", "max_same_dir", "trades", "per_day", "win%", "avg_R", "total_R"]
+    for label, since in (("LAST 30 DAYS", None),
+                         ("LAST 3 DAYS", pd.Timestamp.now(tz="UTC") - pd.Timedelta(days=3))):
+        rows = run_variants(data, regime, since)
+        print(f"\n=== {label}: score>={MIN_SCORE}, alts follow BTC 4H (best average R first) ===")
+        print(pd.DataFrame(rows)[cols].to_string(index=False))
+        live = next(r for r in rows if r["entry"] == "any" and r["sl_atr"] == 1.2
+                    and r["tp_R"] == 1.5 and r["max_same_dir"] == 99)
+        print(f"current live rules: {live['trades']} trades, win {live['win%']}%, avg {live['avg_R']}R")
+        print(breakdown(live["_trades"], "dir").to_string())
 
 
 if __name__ == "__main__":
