@@ -1,188 +1,475 @@
 <!doctype html>
-<html lang="en">
+<html lang="en-GB">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<!--HEAD-->
 <title>Sponsor Finder</title>
+<meta name="description" content="Check whether a UK employer holds a Home Office licence to sponsor Skilled Worker and other work visas. Search every licensed sponsor, with Companies House details.">
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Schibsted+Grotesk:wght@600;700;800&family=Source+Sans+3:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500&display=swap">
 <style>
+/* Layout: navy search band with site bar on top, then a register-style results table on a light page, guidance and footer below */
 :root{
-  --bg:#f6f7f9; --card:#fff; --text:#16181d; --muted:#5d6470; --line:#e2e5ea;
-  --accent:#1d4ed8; --accent-soft:#e8eefc; --ok:#047857; --ok-soft:#e3f6ee;
-  --bad:#b42318; --bad-soft:#fdecea; --warn:#a15c07; --warn-soft:#fdf3e1;
+  --band:#14284b; --band-2:#1c3563; --band-fg:#ffffff; --band-muted:#b8c3d9;
+  --signal:#f4c430; --signal-ink:#14284b;
+  --field:#ffffff; --field-line:transparent;
+  --bg:#f3f4f7; --surface:#ffffff; --sunk:#eef0f4; --fg:#121a2b; --muted:#586277; --line:#dde1e9; --link:#1b4fae;
+  --ok:#0e6a3e; --ok-soft:#e0f2e8; --warn:#8a5200; --warn-soft:#fcefd5; --bad:#a3291c; --bad-soft:#fbe3df;
+  --f-head:"Schibsted Grotesk", "Helvetica Neue", Arial, sans-serif;
+  --f-body:"Source Sans 3", "Segoe UI", system-ui, -apple-system, sans-serif;
+  --f-mono:"IBM Plex Mono", ui-monospace, Menlo, Consolas, monospace;
+  --gutter-l:max(16px, env(safe-area-inset-left, 0px)); --gutter-r:max(16px, env(safe-area-inset-right, 0px));
 }
-@media (prefers-color-scheme: dark){
-  :root{--bg:#0f1115;--card:#171a21;--text:#e8eaee;--muted:#9aa2ae;--line:#2a2f3a;
-  --accent:#7aa2ff;--accent-soft:#1c2540;--ok:#4ade9b;--ok-soft:#12291f;--bad:#ff8a80;--bad-soft:#341a1a;
-  --warn:#f5b85a;--warn-soft:#33270f;}
-}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --band:#0b1530; --band-2:#13224a; --band-fg:#f3f6fb; --band-muted:#9fb0cf;
+  --field:#1e2a47; --field-line:rgba(255,255,255,.22);
+  --bg:#0c111d; --surface:#131a2a; --sunk:#192134; --fg:#e6eaf2; --muted:#98a3b8; --line:#253049; --link:#8db3ff;
+  --ok:#62d497; --ok-soft:#12301f; --warn:#f2b552; --warn-soft:#33260f; --bad:#ff9182; --bad-soft:#3b1a17;
+  color-scheme:dark}}
+:root[data-theme="dark"]{
+  --band:#0b1530; --band-2:#13224a; --band-fg:#f3f6fb; --band-muted:#9fb0cf;
+  --field:#1e2a47; --field-line:rgba(255,255,255,.22);
+  --bg:#0c111d; --surface:#131a2a; --sunk:#192134; --fg:#e6eaf2; --muted:#98a3b8; --line:#253049; --link:#8db3ff;
+  --ok:#62d497; --ok-soft:#12301f; --warn:#f2b552; --warn-soft:#33260f; --bad:#ff9182; --bad-soft:#3b1a17;
+  color-scheme:dark}
+
 *{box-sizing:border-box}
-body{margin:0;background:var(--bg);color:var(--text);font:15px/1.5 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
-.wrap{max-width:980px;margin:0 auto;padding:0 16px}
-header{padding:40px 0 20px}
-h1{margin:0 0 6px;font-size:30px;letter-spacing:-.02em}
-.sub{color:var(--muted);margin:0}
-.stats{display:flex;gap:10px;flex-wrap:wrap;margin:18px 0 0}
-.stat{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:10px 14px;min-width:140px}
-.stat b{display:block;font-size:20px;font-variant-numeric:tabular-nums}
-.stat span{color:var(--muted);font-size:13px}
-.search{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:14px;display:grid;
-  grid-template-columns:2fr 1fr;gap:10px;margin-top:22px}
-.search .row{grid-column:1/-1;display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
-input,select{width:100%;padding:11px 12px;border:1px solid var(--line);border-radius:9px;background:var(--bg);
-  color:var(--text);font:inherit}
-input:focus,select:focus{outline:2px solid var(--accent);outline-offset:-1px}
-#q{font-size:17px}
-.meta{color:var(--muted);margin:16px 2px 8px;font-size:14px}
-.list{display:flex;flex-direction:column;gap:8px}
-.item{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:14px 16px;cursor:pointer;
-  display:flex;justify-content:space-between;gap:12px;align-items:flex-start;text-align:left;width:100%;color:inherit;font:inherit}
-.item:hover{border-color:var(--accent)}
-.name{font-weight:600;font-size:16px}
-.loc{color:var(--muted);font-size:14px}
-.tags{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
-.tag{font-size:12px;padding:2px 8px;border-radius:99px;background:var(--accent-soft);color:var(--accent)}
-.tag.b{background:var(--warn-soft);color:var(--warn)}
-.badge{display:inline-block;font-size:12px;font-weight:600;padding:3px 10px;border-radius:99px;white-space:nowrap}
-.badge.on{background:var(--ok-soft);color:var(--ok)}
-.badge.off{background:var(--bad-soft);color:var(--bad)}
-.pager{display:flex;gap:8px;justify-content:center;margin:20px 0 40px}
-button.pg{padding:8px 14px;border:1px solid var(--line);background:var(--card);color:var(--text);border-radius:8px;cursor:pointer;font:inherit}
-button.pg:disabled{opacity:.4;cursor:default}
-.note{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:14px 16px;color:var(--muted);font-size:14px;margin-bottom:40px}
-.note b{color:var(--text)}
-dialog{border:1px solid var(--line);border-radius:14px;padding:0;max-width:640px;width:calc(100% - 32px);
-  background:var(--card);color:var(--text)}
-dialog::backdrop{background:rgba(0,0,0,.45)}
-.dlg{padding:22px}
-.dlg h2{margin:0 0 4px;font-size:22px}
-.grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:16px 0}
-.grid div{background:var(--bg);border-radius:9px;padding:10px 12px}
-.grid span:not(.badge){display:block;color:var(--muted);font-size:12px}
-table{width:100%;border-collapse:collapse;font-size:14px;margin-top:6px}
-th,td{text-align:left;padding:7px 6px;border-bottom:1px solid var(--line);vertical-align:top}
-th{color:var(--muted);font-weight:500;font-size:12px}
-h3{font-size:14px;margin:18px 0 4px}
-.close{float:right;border:0;background:none;color:var(--muted);font-size:22px;cursor:pointer;line-height:1}
-.empty{text-align:center;color:var(--muted);padding:40px 0}
-@media (max-width:640px){.search{grid-template-columns:1fr}.search .row{grid-template-columns:1fr}.grid{grid-template-columns:1fr}
-  .item{flex-direction:column}}
+html{-webkit-text-size-adjust:100%}
+body{margin:0;background:var(--bg);color:var(--fg);font:16px/1.5 var(--f-body)}
+a{color:var(--link)}
+.inner{max-width:1080px;margin:0 auto;padding-left:var(--gutter-l);padding-right:var(--gutter-r)}
+.vh{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+:focus-visible{outline:3px solid var(--signal);outline-offset:2px}
+
+/* Site bar + search band */
+.band{background:var(--band);color:var(--band-fg)}
+.bar{display:flex;align-items:center;justify-content:space-between;gap:16px;padding-block:14px;border-bottom:1px solid rgba(255,255,255,.12)}
+.brand{display:flex;align-items:center;gap:10px;color:inherit;text-decoration:none;font:800 19px/1 var(--f-head);letter-spacing:-.01em}
+.brand svg{flex:none}
+.nav{display:flex;gap:22px;font-size:15px}
+.nav a{color:var(--band-muted);text-decoration:none}
+.nav a:hover{color:var(--band-fg);text-decoration:underline}
+.hero{padding-block:44px 30px;display:grid;grid-template-columns:minmax(0,1fr);gap:22px}
+.hero h1{margin:0;font:800 clamp(30px,5vw,46px)/1.06 var(--f-head);letter-spacing:-.025em;max-width:18ch;text-wrap:balance}
+.hero p{margin:0;color:var(--band-muted);font-size:18px;max-width:60ch}
+.hero p b{color:var(--band-fg);font-weight:600;font-variant-numeric:tabular-nums}
+.find{display:grid;grid-template-columns:minmax(0,1fr);gap:10px}
+.find-main{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,.45fr) auto;gap:0;background:var(--field);border:1px solid var(--field-line);border-radius:6px;overflow:hidden}
+.find-main:focus-within{box-shadow:0 0 0 3px var(--signal)}
+.find-main input{border:0;background:transparent;color:var(--fg);font:500 18px/1.2 var(--f-body);padding:17px 18px;min-width:0;width:100%}
+.find-main input:focus{outline:none}
+.find-main input + input{border-left:1px solid var(--line)}
+.find-main input::placeholder{color:var(--muted)}
+.find-main button{border:0;background:var(--signal);color:var(--signal-ink);font:700 17px/1 var(--f-head);padding:0 28px;cursor:pointer}
+.find-main button:hover{filter:brightness(1.05)}
+.filters{display:flex;flex-wrap:wrap;gap:10px;align-items:center}
+.filters select{appearance:none;-webkit-appearance:none;background:var(--band-2) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M1 1l4 4 4-4' fill='none' stroke='%23b8c3d9' stroke-width='1.6'/%3E%3C/svg%3E") no-repeat right 12px center;
+  color:var(--band-fg);border:1px solid rgba(255,255,255,.18);border-radius:5px;padding:8px 32px 8px 12px;font:500 15px var(--f-body);max-width:100%;min-width:0}
+.filters select option{color:#121a2b;background:#fff}
+.try{font-size:15px;color:var(--band-muted);display:flex;flex-wrap:wrap;gap:4px 12px;align-items:center}
+.try button{all:unset;cursor:pointer;color:var(--band-fg);text-decoration:underline;text-decoration-color:rgba(255,255,255,.35);text-underline-offset:3px}
+.try button:hover{text-decoration-color:var(--signal)}
+.try button:focus-visible{outline:2px solid var(--signal);outline-offset:2px}
+
+/* Results */
+main{padding-block:28px 12px}
+.res-head{display:flex;justify-content:space-between;align-items:baseline;gap:10px 20px;flex-wrap:wrap;margin-bottom:12px}
+.res-head h2{margin:0;font:700 20px/1.2 var(--f-head)}
+.res-head .src{font-size:14px;color:var(--muted)}
+.table{background:var(--surface);border:1px solid var(--line);border-radius:6px}
+.thead,.row-head{display:grid;grid-template-columns:minmax(0,2.3fr) minmax(0,1.7fr) 128px 132px;gap:16px;align-items:center;padding:12px 18px}
+.thead{font:600 12.5px/1.2 var(--f-body);letter-spacing:.05em;text-transform:uppercase;color:var(--muted);border-bottom:1px solid var(--line);background:var(--sunk);border-radius:6px 6px 0 0}
+.row{border-bottom:1px solid var(--line)}
+.row:last-child{border-bottom:0}
+.row-head{all:unset;box-sizing:border-box;display:grid;grid-template-columns:minmax(0,2.3fr) minmax(0,1.7fr) 128px 132px;gap:16px;align-items:center;padding:14px 18px;width:100%;cursor:pointer}
+.row-head:hover{background:var(--sunk)}
+.row-head:focus-visible{outline:3px solid var(--signal);outline-offset:-3px}
+.row.open .row-head{background:var(--sunk)}
+.org{min-width:0}
+.org strong{display:block;font-weight:600;font-size:17px;line-height:1.3;overflow-wrap:anywhere}
+.org strong mark{background:rgba(244,196,48,.38);color:inherit;border-radius:2px;padding:0 1px}
+.org span{display:block;color:var(--muted);font-size:14.5px}
+.routes{font-size:15px;min-width:0;overflow-wrap:anywhere}
+.routes .more{color:var(--muted);white-space:nowrap}
+.inc{font-size:15px;font-variant-numeric:tabular-nums;color:var(--fg)}
+.inc.none{color:var(--muted)}
+.st{display:inline-flex;align-items:center;gap:7px;font:600 14px/1.2 var(--f-body);white-space:nowrap}
+.st::before{content:"";width:9px;height:9px;border-radius:50%;background:currentColor;flex:none}
+.st.ok{color:var(--ok)} .st.warn{color:var(--warn)} .st.bad{color:var(--bad)}
+.lbl{display:none}
+
+.detail{padding:4px 18px 22px;display:grid;grid-template-columns:minmax(0,1.15fr) minmax(0,1fr);gap:22px 28px;background:var(--sunk)}
+.detail[hidden]{display:none!important}
+.detail h3{margin:0 0 8px;font:700 13px/1.2 var(--f-body);letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
+.lic{width:100%;border-collapse:collapse;font-size:15px;background:var(--surface);border:1px solid var(--line)}
+.lic th,.lic td{text-align:left;padding:9px 12px;border-bottom:1px solid var(--line);vertical-align:top}
+.lic th{font-weight:600;font-size:13px;color:var(--muted)}
+.lic td.r{white-space:nowrap}
+.lic tr.ended td{color:var(--muted);text-decoration:line-through}
+.facts{margin:0;display:grid;grid-template-columns:auto minmax(0,1fr);gap:0;background:var(--surface);border:1px solid var(--line);font-size:15px}
+.facts dt,.facts dd{padding:8px 12px;border-bottom:1px solid var(--line);margin:0}
+.facts dt{color:var(--muted);white-space:nowrap}
+.facts dd{overflow-wrap:anywhere}
+.facts dt:last-of-type,.facts dd:last-of-type{border-bottom:0}
+.mono{font-family:var(--f-mono);font-size:14px}
+.nomatch{margin:0;padding:12px;background:var(--surface);border:1px dashed var(--line);color:var(--muted);font-size:15px}
+.wide{grid-column:1/-1}
+.events{list-style:none;margin:0;padding:0;font-size:15px;display:grid;gap:4px}
+.events li{display:grid;grid-template-columns:110px minmax(0,1fr);gap:12px}
+.events time{color:var(--muted);font-variant-numeric:tabular-nums}
+.actions{display:flex;flex-wrap:wrap;gap:10px;align-items:center}
+.btn{display:inline-flex;align-items:center;gap:6px;padding:9px 14px;border-radius:5px;border:1px solid var(--line);background:var(--surface);color:var(--fg);font:600 15px var(--f-body);text-decoration:none;cursor:pointer}
+.btn:hover{border-color:var(--fg)}
+.btn.primary{background:var(--band);border-color:var(--band);color:var(--band-fg)}
+.note{font-size:13.5px;color:var(--muted);margin:0}
+
+.pager{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-top:14px;font-size:15px;color:var(--muted)}
+.pager .btn[disabled]{opacity:.45;cursor:default}
+.empty{padding:36px 18px;text-align:center;color:var(--muted)}
+.empty strong{display:block;color:var(--fg);font:700 19px/1.3 var(--f-head);margin-bottom:6px}
+.skeleton{height:14px;border-radius:3px;background:var(--sunk);display:block}
+
+/* Guidance */
+.guide{padding-block:44px 20px;display:grid;gap:28px}
+.guide h2{margin:0;font:800 26px/1.15 var(--f-head);letter-spacing:-.015em}
+.key{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:0;border-top:2px solid var(--fg)}
+.key div{padding:16px 20px 4px 0}
+.key div + div{padding-left:20px;border-left:1px solid var(--line)}
+.key h3{margin:0 0 6px}
+.key p{margin:0;color:var(--muted)}
+.faq{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:22px 40px}
+.faq h3{margin:0 0 4px;font:700 17px/1.3 var(--f-head)}
+.faq p{margin:0;color:var(--muted)}
+
+footer{margin-top:36px;border-top:1px solid var(--line);background:var(--surface)}
+.foot{padding-block:26px 34px;display:grid;grid-template-columns:minmax(0,1.3fr) minmax(0,1fr);gap:20px 40px;font-size:14.5px;color:var(--muted)}
+.foot strong{color:var(--fg);font:800 16px var(--f-head)}
+.foot p{margin:6px 0 0}
+.foot ul{margin:6px 0 0;padding:0;list-style:none;display:grid;gap:4px}
+
+@media (max-width:860px){
+  .thead{display:none}
+  .row-head{grid-template-columns:minmax(0,1fr) auto;gap:4px 12px}
+  .org{grid-column:1}
+  .row-head .stcell{grid-column:2;grid-row:1;align-self:start}
+  .routes,.inc{grid-column:1/-1;font-size:14.5px;color:var(--muted)}
+  .lbl{display:inline;color:var(--muted)}
+  .detail{grid-template-columns:minmax(0,1fr)}
+  .key{grid-template-columns:minmax(0,1fr)}
+  .key div + div{padding-left:0;border-left:0;border-top:1px solid var(--line)}
+  .faq,.foot{grid-template-columns:minmax(0,1fr)}
+}
+@media (max-width:620px){
+  .nav{display:none}
+  .find-main{grid-template-columns:minmax(0,1fr)}
+  .find-main input + input{border-left:0;border-top:1px solid var(--line)}
+  .find-main button{padding:15px}
+  .hero{padding-block:30px 24px}
+  .hero p{font-size:16.5px}
+  .events li{grid-template-columns:minmax(0,1fr)}
+}
+@media (prefers-reduced-motion: reduce){*{transition:none!important;scroll-behavior:auto!important}}
 </style>
+<!--/HEAD-->
 </head>
 <body>
-<div class="wrap">
-<header>
-  <h1>Sponsor Finder</h1>
-  <p class="sub">Check whether a UK company holds a licence to sponsor Skilled Worker (formerly Tier 2) and other work visas.</p>
-  <div class="stats">
-    <div class="stat"><b id="sActive">–</b><span>Licensed sponsors</span></div>
-    <div class="stat"><b id="sRemoved">–</b><span>Removed since tracking began</span></div>
-    <div class="stat"><b id="sUpdated">–</b><span>Register date</span></div>
+<!--BODY-->
+<div class="band">
+  <div class="inner">
+    <div class="bar">
+      <a class="brand" href="#top" id="top">
+        <svg width="28" height="28" viewBox="0 0 28 28" aria-hidden="true"><rect width="28" height="28" rx="5" fill="#f4c430"/><path d="M7 14.5l4.5 4.5L21 9" fill="none" stroke="#14284b" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        Sponsor Finder
+      </a>
+      <nav class="nav" aria-label="Site">
+        <a href="#results">Search</a>
+        <a href="#how">Reading a result</a>
+        <a href="#about">About the data</a>
+      </nav>
+    </div>
+    <div class="hero">
+      <h1>Can this employer sponsor your UK work visa?</h1>
+      <p>Search all <b id="hCount">127,686</b> organisations on the Home Office register of licensed sponsors. Register dated <b id="hDate">6 November 2026</b>.</p>
+      <form class="find" id="form" role="search">
+        <div class="find-main">
+          <label class="vh" for="q">Organisation name</label>
+          <input id="q" type="search" placeholder="Employer name" autocomplete="off" enterkeyhint="search">
+          <label class="vh" for="town">Town or county</label>
+          <input id="town" type="search" placeholder="Town or county" autocomplete="off" enterkeyhint="search">
+          <button type="submit">Search</button>
+        </div>
+        <div class="filters">
+          <label class="vh" for="route">Visa route</label>
+          <select id="route"><option value="">All visa routes</option></select>
+          <label class="vh" for="rating">Licence rating</label>
+          <select id="rating"><option value="">Any rating</option><option value="A">A-rated only</option><option value="B">B-rated only</option></select>
+          <label class="vh" for="status">Licence status</label>
+          <select id="status" hidden><option value="">Licensed and removed</option><option value="active">Currently licensed</option><option value="removed">Removed from register</option></select>
+        </div>
+        <div class="try">Try <button type="button" data-q="NHS Foundation Trust">NHS Foundation Trust</button><button type="button" data-q="University">University</button><button type="button" data-q="Care">Care</button><button type="button" data-q="Deloitte">Deloitte</button></div>
+      </form>
+    </div>
   </div>
-</header>
+</div>
 
-<div class="search">
-  <input id="q" type="search" placeholder="Company name, e.g. Deloitte" autofocus>
-  <input id="town" type="search" placeholder="Town or county">
-  <div class="row">
-    <select id="route"><option value="">All visa routes</option></select>
-    <select id="status"><option value="">Active &amp; removed</option><option value="active">Active only</option><option value="removed">Removed only</option></select>
-    <select id="rating"><option value="">Any rating</option><option value="A">A rating</option><option value="B">B rating</option></select>
+<main class="inner" id="results">
+  <div class="res-head">
+    <h2 id="count" aria-live="polite">Loading the register…</h2>
+    <span class="src" id="pageinfo"></span>
   </div>
-</div>
+  <div class="table">
+    <div class="thead" aria-hidden="true"><span>Organisation</span><span>Visa routes</span><span>Incorporated</span><span>Licence</span></div>
+    <div id="list">
+      <div class="row"><div class="row-head"><span class="skeleton" style="width:60%"></span><span class="skeleton" style="width:70%"></span><span class="skeleton"></span><span class="skeleton" style="width:60%"></span></div></div>
+      <div class="row"><div class="row-head"><span class="skeleton" style="width:45%"></span><span class="skeleton" style="width:50%"></span><span class="skeleton"></span><span class="skeleton" style="width:60%"></span></div></div>
+      <div class="row"><div class="row-head"><span class="skeleton" style="width:70%"></span><span class="skeleton" style="width:40%"></span><span class="skeleton"></span><span class="skeleton" style="width:60%"></span></div></div>
+    </div>
+  </div>
+  <div class="pager" id="pager" hidden>
+    <button type="button" class="btn" id="prev">← Previous</button>
+    <span id="pagepos"></span>
+    <button type="button" class="btn" id="next">Next →</button>
+  </div>
+</main>
 
-<div class="meta" id="meta"></div>
-<div class="list" id="list"></div>
-<div class="pager"><button class="pg" id="prev">← Previous</button><button class="pg" id="next">Next →</button></div>
+<section class="inner guide" id="how">
+  <h2>Reading a result</h2>
+  <div class="key">
+    <div><h3><span class="st ok">Licensed</span></h3><p>The organisation holds an A-rated licence. It can assign certificates of sponsorship, the document you need to apply for a work visa.</p></div>
+    <div><h3><span class="st warn">B-rated</span></h3><p>The Home Office has downgraded the licence, usually after a compliance problem. The employer can't assign new certificates until it is back to an A rating.</p></div>
+    <div><h3><span class="st bad">Not listed</span></h3><p>No licence under that name. Search a shorter part of the name, since the register uses the legal company name, which can differ from the brand you know.</p></div>
+  </div>
+  <div class="faq" id="about">
+    <div><h3>Does a licence mean they will sponsor me?</h3><p>No. It means they are allowed to. Whether they sponsor depends on the role. The job must also meet the visa rules, including an eligible occupation and the minimum salary. Ask the employer directly.</p></div>
+    <div><h3>Where does the data come from?</h3><p>The Home Office <a href="https://www.gov.uk/government/publications/register-of-licensed-sponsors-workers" target="_blank" rel="noopener">Register of licensed sponsors: workers</a>, published every working day, and the free <a href="https://download.companieshouse.gov.uk/en_output.html" target="_blank" rel="noopener">Companies House company data</a>, published monthly.</p></div>
+    <div><h3>What does the incorporation date mean?</h3><p>It is when the company was set up at Companies House, not when it got its sponsor licence. The Home Office doesn't publish licence dates or how many workers a company has sponsored.</p></div>
+    <div><h3>How accurate are the company details?</h3><p>Companies House records are matched by company name, which works for about 4 in 5 sponsors. Charities, NHS bodies, sole traders and businesses trading under another name often have no match. Open the Companies House record to confirm.</p></div>
+  </div>
+</section>
 
-<div class="note">
-  <b>About this data.</b> Every company here comes from the Home Office
-  <a href="https://www.gov.uk/government/publications/register-of-licensed-sponsors-workers" target="_blank" rel="noopener">Register of licensed sponsors: workers</a>,
-  which is updated every working day. The register lists only the name, location, licence type, rating and visa route.
-  <b>“First seen”</b> is the date this site first found the company on the register, not the official licence date.
-  <b>“Removed”</b> means the company has dropped off the register since we started tracking.
-  The Home Office does not publish licence grant dates or when a company last sponsored someone.
-  An A rating means the licence is in good standing. A B rating means the Home Office has downgraded it and the company cannot issue new certificates of sponsorship until it is fixed.
-</div>
-</div>
-
-<dialog id="dlg"><div class="dlg" id="dlgBody"></div></dialog>
-
+<footer>
+  <div class="inner foot">
+    <div>
+      <strong>Sponsor Finder</strong>
+      <p>An independent search tool. Not affiliated with the Home Office, UK Visas and Immigration or Companies House. Always confirm with the employer before you rely on a result.</p>
+      <p>Contains public sector information licensed under the <a href="https://www.nationalarchives.gov.uk/doc/open-government-licence/version/3/" target="_blank" rel="noopener">Open Government Licence v3.0</a>.</p>
+    </div>
+    <div>
+      <strong>Data</strong>
+      <ul>
+        <li>Sponsor register: <span id="fReg">6 November 2026</span></li>
+        <li>Companies House data: <span id="fCh">1 November 2026</span></li>
+        <li id="fRemovedLi" hidden>Removed since tracking began: <span id="fRemoved">0</span></li>
+      </ul>
+    </div>
+  </div>
+</footer>
+<!--/BODY-->
+<!--SCRIPT-->
 <script>
+(() => {
 const $ = id => document.getElementById(id);
-const esc = s => (s ?? "").toString().replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
-const fmt = d => d ? new Date(d + "T00:00:00").toLocaleDateString("en-GB", {day:"numeric", month:"short", year:"numeric"}) : "—";
-let page = 1, timer, trackingSince;
+const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"})[c]);
+const fmt = d => d ? new Date(d + "T00:00:00").toLocaleDateString("en-GB", {day:"numeric", month:"short", year:"numeric"}) : "";
+const fmtLong = d => d ? new Date(d + "T00:00:00").toLocaleDateString("en-GB", {day:"numeric", month:"long", year:"numeric"}) : "";
+const norm = s => String(s).toLowerCase().normalize("NFKD").replace(/[^a-z0-9 ]+/g, " ").replace(/\s+/g, " ").trim();
+const isB = r => /B rating/.test(r);
+const ratingShort = r => (r.match(/\((.*)\)\s*$/) || [, r])[1].replace(/\s+\)/, ")").trim();
+const CH = "https://find-and-update.company-information.service.gov.uk";
+const PAGE = 25;
 
-fetch("/api/stats").then(r => r.json()).then(s => {
-  $("sActive").textContent = s.active.toLocaleString();
-  $("sRemoved").textContent = s.removed.toLocaleString();
-  $("sUpdated").textContent = fmt(s.updated);
-  trackingSince = s.first_snapshot;
-  s.routes.forEach(r => $("route").insertAdjacentHTML("beforeend", `<option>${esc(r)}</option>`));
+/* ---------- Data sources: the live server API, or a static data file ---------- */
+function serverApi(){
+  const get = u => fetch(u).then(r => { if (!r.ok) throw new Error(r.status); return r.json(); });
+  return {
+    hasHistory: true,
+    stats: () => get("/api/stats").then(s => ({count:s.active, removed:s.removed, updated:s.updated, chDate:s.ch_date, routes:s.routes})),
+    search: p => get("/api/search?" + new URLSearchParams(p)).then(d => ({total:d.total, results:d.results.map(r => ({
+      id:r.id, name:r.name, town:r.town, county:r.county, removed:r.removed_on, incorporated:r.incorporated,
+      licences:r.licences.map(l => ({route:l.route, rating:l.rating}))}))})),
+    detail: id => get("/api/sponsor/" + id).then(d => ({
+      firstSeen:d.sponsor.first_seen, lastSeen:d.sponsor.last_seen, removed:d.sponsor.removed_on, trackingSince:d.tracking_since,
+      licences:d.licences.map(l => ({route:l.route, rating:l.type_rating, since:l.first_seen, active:!!l.active})),
+      ch:d.companies_house, events:d.events}))
+  };
+}
+
+function staticApi(url){
+  let D, idx;
+  const ready = fetch(url).then(r => { if (!r.ok) throw new Error(r.status); return r.text(); }).then(async t => {
+    const bin = atob(t.trim()), buf = new Uint8Array(bin.length);
+    for (let i = 0; i < bin.length; i++) buf[i] = bin.charCodeAt(i);
+    const s = new Blob([buf]).stream().pipeThrough(new DecompressionStream("gzip"));
+    D = JSON.parse(await new Response(s).text());
+    idx = D.rows.map(r => ({n:" " + norm(r[0]), t:norm(r[1] + " " + r[2])}));
+  });
+  const lic = row => { const out = []; for (let k = 0; k < row[3].length; k += 2) out.push({route:D.routes[row[3][k]], rating:D.ratings[row[3][k+1]]}); return out; };
+  return {
+    hasHistory: false,
+    stats: () => ready.then(() => ({count:D.rows.length, updated:D.date, chDate:D.ch_date, routes:D.routes})),
+    search: p => ready.then(() => {
+      const words = p.q ? norm(p.q).split(" ").filter(Boolean) : [], t = norm(p.town || "");
+      const rIdx = p.route ? D.routes.indexOf(p.route) : -1, hits = [];
+      for (let i = 0; i < D.rows.length; i++){
+        const x = idx[i];
+        if (t && !x.t.includes(t)) continue;
+        let score = 0, ok = true;
+        for (const w of words){
+          const pos = x.n.indexOf(" " + w);
+          if (pos === 0) score += 3; else if (pos > 0) score += 1; else if (!x.n.includes(w)) { ok = false; break; }
+        }
+        if (!ok) continue;
+        if (p.route || p.rating){
+          const l = D.rows[i][3]; let m = false;
+          for (let k = 0; k < l.length; k += 2){
+            if (rIdx >= 0 && l[k] !== rIdx) continue;
+            const rt = D.ratings[l[k+1]];
+            if (p.rating === "B" ? isB(rt) : p.rating === "A" ? !isB(rt) && /\(A/.test(rt) : true){ m = true; break; }
+          }
+          if (!m) continue;
+        }
+        if (words.length && x.n.trim() === words.join(" ")) score += 100;
+        hits.push([i, score]);
+      }
+      if (words.length) hits.sort((a, b) => b[1] - a[1] || a[0] - b[0]);
+      const page = hits.slice((p.page - 1) * PAGE, p.page * PAGE).map(([i]) => {
+        const r = D.rows[i];
+        return {id:i, name:r[0], town:r[1], county:r[2], removed:null, incorporated:r[4] ? r[6] : null, licences:lic(r)};
+      });
+      return {total:hits.length, results:page};
+    }),
+    detail: id => ready.then(() => {
+      const r = D.rows[id];
+      return {licences:lic(r).map(l => ({...l, active:true})), registerDate:D.date, chDate:D.ch_date,
+        ch: r[4] ? {number:r[4], status:D.statuses[r[5]], incorporated:r[6], sic:D.sics[r[7]]} : null, events:null};
+    })
+  };
+}
+
+const API = window.SF_STATIC ? staticApi(window.SF_STATIC) : serverApi();
+let page = 1, total = 0, timer, info = {};
+if (API.hasHistory) $("status").hidden = false;
+
+API.stats().then(s => {
+  info = s;
+  $("hCount").textContent = s.count.toLocaleString("en-GB");
+  $("hDate").textContent = $("fReg").textContent = fmtLong(s.updated);
+  if (s.chDate) $("fCh").textContent = fmtLong(s.chDate);
+  if (API.hasHistory){ $("fRemovedLi").hidden = false; $("fRemoved").textContent = (s.removed || 0).toLocaleString("en-GB"); }
+  s.routes.forEach(r => $("route").insertAdjacentHTML("beforeend", `<option value="${esc(r)}">${esc(r)}</option>`));
+  run();
+}).catch(() => {
+  $("count").textContent = "The register didn't load";
+  $("list").innerHTML = `<div class="empty"><strong>Something went wrong loading the data</strong>Reload the page to try again.</div>`;
 });
 
-function tags(lic){
-  return lic.map(l => `<span class="tag ${/B rating/.test(l.rating) ? "b" : ""}">${esc(l.route)} · ${esc(l.rating.replace(/^.*?\((.*)\)\s*$/, "$1"))}</span>`).join("");
+function params(){
+  return {q:$("q").value.trim(), town:$("town").value.trim(), route:$("route").value, rating:$("rating").value,
+          status:API.hasHistory ? $("status").value : "", page};
+}
+
+function highlight(name, q){
+  let h = esc(name);
+  const words = norm(q).split(" ").filter(w => w.length > 1);
+  if (!words.length) return h;
+  const re = new RegExp("(" + words.map(w => w.replace(/[^a-z0-9]/g, "")).join("|") + ")", "gi");
+  return h.replace(/(<[^>]*>)|([^<]+)/g, (m, tag, text) => tag || text.replace(re, "<mark>$1</mark>"));
+}
+
+function statusOf(r){
+  if (r.removed) return `<span class="st bad">Removed ${fmt(r.removed)}</span>`;
+  if (r.licences.some(l => isB(l.rating))) return `<span class="st warn">B-rated</span>`;
+  return `<span class="st ok">Licensed</span>`;
 }
 
 async function run(){
-  const p = new URLSearchParams({q:$("q").value, town:$("town").value, route:$("route").value,
-    status:$("status").value, rating:$("rating").value, page});
-  const d = await (await fetch("/api/search?" + p)).json();
-  $("meta").textContent = `${d.total.toLocaleString()} ${d.total === 1 ? "company" : "companies"} found`;
-  $("list").innerHTML = d.results.length ? d.results.map(r => `
-    <button class="item" data-id="${r.id}">
-      <div>
-        <div class="name">${esc(r.name)}</div>
-        <div class="loc">${esc([r.town, r.county].filter(Boolean).join(", ")) || "Location not listed"} · First seen ${fmt(r.first_seen)}${r.incorporated ? ` · Incorporated ${fmt(r.incorporated)}` : ""}</div>
-        <div class="tags">${tags(r.licences)}</div>
-      </div>
-      ${r.removed_on ? `<span class="badge off">Removed ${fmt(r.removed_on)}</span>` : `<span class="badge on">Licensed</span>`}
-    </button>`).join("") : `<div class="empty">No companies match. If a company isn't listed, it doesn't currently hold a worker sponsor licence under that name.</div>`;
-  $("prev").disabled = page <= 1;
-  $("next").disabled = page * d.page_size >= d.total;
+  const p = params();
+  const d = await API.search(p);
+  total = d.total;
+  const filtered = p.q || p.town || p.route || p.rating || p.status;
+  $("count").textContent = filtered
+    ? `${total.toLocaleString("en-GB")} ${total === 1 ? "organisation" : "organisations"} found`
+    : `All ${total.toLocaleString("en-GB")} organisations, A to Z`;
+  const pages = Math.max(1, Math.ceil(total / PAGE));
+  $("pageinfo").textContent = total ? `Showing ${((page - 1) * PAGE + 1).toLocaleString("en-GB")}–${Math.min(page * PAGE, total).toLocaleString("en-GB")}` : "";
+  $("pager").hidden = total <= PAGE;
+  $("pagepos").textContent = `Page ${page} of ${pages.toLocaleString("en-GB")}`;
+  $("prev").disabled = page <= 1; $("next").disabled = page >= pages;
+  if (!total){
+    $("list").innerHTML = `<div class="empty"><strong>No licensed sponsor found</strong>Nothing on the register matches${p.q ? ` “${esc(p.q)}”` : ""}. Try fewer words, part of the legal company name, or remove a filter.</div>`;
+    return;
+  }
+  $("list").innerHTML = d.results.map(r => {
+    const routes = r.licences.map(l => l.route);
+    return `<div class="row" data-id="${r.id}">
+      <button type="button" class="row-head" aria-expanded="false">
+        <span class="org"><strong>${highlight(r.name, p.q)}</strong><span>${esc([r.town, r.county].filter(Boolean).join(", ") || "Location not listed")}</span></span>
+        <span class="routes"><span class="lbl">Routes: </span>${routes.length ? esc(routes[0]) + (routes.length > 1 ? ` <span class="more">+${routes.length - 1} more</span>` : "") : "None active"}</span>
+        <span class="inc${r.incorporated ? "" : " none"}"><span class="lbl">Incorporated </span>${r.incorporated ? fmt(r.incorporated) : "No company match"}</span>
+        <span class="stcell">${statusOf(r)}</span>
+      </button>
+      <div class="detail" hidden></div>
+    </div>`;
+  }).join("");
 }
 
-function reset(){ page = 1; clearTimeout(timer); timer = setTimeout(run, 200); }
-["q","town"].forEach(id => $(id).addEventListener("input", reset));
-["route","status","rating"].forEach(id => $(id).addEventListener("change", reset));
-$("prev").onclick = () => { page--; run(); scrollTo({top:0}); };
-$("next").onclick = () => { page++; run(); scrollTo({top:0}); };
+function detailHtml(r, name, town){
+  const lic = `<div><h3>Licence</h3><div style="overflow-x:auto"><table class="lic">
+      <tr><th>Visa route</th><th>Type and rating</th>${API.hasHistory ? "<th>Since</th>" : ""}</tr>
+      ${r.licences.map(l => `<tr class="${l.active ? "" : "ended"}"><td>${esc(l.route)}</td><td class="r"><span class="st ${isB(l.rating) ? "warn" : "ok"}">${esc(ratingShort(l.rating))}</span> · ${esc(l.rating.split(" (")[0])}</td>${API.hasHistory ? `<td class="r">${fmt(l.since)}</td>` : ""}</tr>`).join("")}
+    </table></div></div>`;
+  const ch = r.ch ? `<div><h3>Companies House</h3><dl class="facts">
+      <dt>Company number</dt><dd class="mono">${esc(r.ch.number)}</dd>
+      <dt>Status</dt><dd><span class="st ${r.ch.status === "Active" ? "ok" : "warn"}">${esc(r.ch.status)}</span></dd>
+      <dt>Incorporated</dt><dd>${fmtLong(r.ch.incorporated) || "Not given"}</dd>
+      <dt>Business</dt><dd>${esc(r.ch.sic && r.ch.sic !== "None Supplied" ? r.ch.sic.replace(/^\d+\s*-\s*/, "") : "Not given")}</dd>
+      ${r.ch.postcode ? `<dt>Registered office</dt><dd>${esc([r.ch.post_town, r.ch.postcode].filter(Boolean).join(", "))}</dd>` : ""}
+    </dl></div>`
+    : `<div><h3>Companies House</h3><p class="nomatch">No company with this exact name. It may be a charity, public body, sole trader or partnership, trade under a different name, or have been dissolved.</p></div>`;
+  const hist = r.events ? `<div class="wide"><h3>Register history</h3><ul class="events">
+      ${r.events.map(e => `<li><time datetime="${esc(e.date)}">${fmt(e.date)}</time><span>${esc(e.detail || e.kind)}</span></li>`).join("")}
+      </ul><p class="note">Tracking began ${fmtLong(r.trackingSince)}. Earlier changes aren't recorded.</p></div>` : "";
+  const actions = `<div class="wide actions">
+      <a class="btn primary" href="${r.ch ? `${CH}/company/${encodeURIComponent(r.ch.number)}` : `${CH}/search/companies?q=${encodeURIComponent(name)}`}" target="_blank" rel="noopener">${r.ch ? "Open Companies House record" : "Search Companies House"} ↗</a>
+      <a class="btn" href="https://www.google.com/search?q=${encodeURIComponent(name + " " + town + " official website")}" target="_blank" rel="noopener">Find their website ↗</a>
+      <button type="button" class="btn copy">Copy name</button>
+    </div>`;
+  return lic + ch + hist + actions;
+}
 
 $("list").addEventListener("click", async e => {
-  const b = e.target.closest(".item"); if (!b) return;
-  const d = await (await fetch("/api/sponsor/" + b.dataset.id)).json();
-  const s = d.sponsor;
-  const firstNote = s.first_seen === d.tracking_since ? " (licensed on or before this date)" : "";
-  $("dlgBody").innerHTML = `
-    <button class="close" onclick="dlg.close()" aria-label="Close">×</button>
-    <h2>${esc(s.name)}</h2>
-    <div class="loc">${esc([s.town, s.county].filter(Boolean).join(", "))}</div>
-    <div class="grid">
-      <div><span>Status</span>${s.removed_on ? `<span class="badge off">Removed</span>` : `<span class="badge on">Licensed</span>`}</div>
-      <div><span>First seen on register</span>${fmt(s.first_seen)}${firstNote}</div>
-      <div><span>Last seen on register</span>${fmt(s.last_seen)}</div>
-      <div><span>Removed on</span>${fmt(s.removed_on)}</div>
-    </div>
-    ${d.companies_house ? (h => `<h3>Companies House</h3>
-    <div class="grid">
-      <div><span>Company number</span><a href="https://find-and-update.company-information.service.gov.uk/company/${esc(h.number)}" target="_blank" rel="noopener">${esc(h.number)}</a></div>
-      <div><span>Company status</span>${esc(h.status)}</div>
-      <div><span>Incorporated</span>${fmt(h.incorporated)}</div>
-      <div><span>Business type</span>${esc(h.sic || "—")}</div>
-      <div><span>Registered office</span>${esc([h.post_town, h.postcode].filter(Boolean).join(", "))}</div>
-      <div><span>Type</span>${esc(h.category)}</div>
-    </div>`)(d.companies_house) : `<p class="loc">No matching Companies House record. It may be a sole trader, partnership or public body, trade under another name, or have been dissolved.</p>`}
-    <h3>Licences</h3>
-    <table><tr><th>Route</th><th>Type &amp; rating</th><th>Since</th><th></th></tr>
-      ${d.licences.map(l => `<tr><td>${esc(l.route)}</td><td>${esc(l.type_rating)}</td><td>${fmt(l.first_seen)}</td>
-        <td>${l.active ? "" : "Ended"}</td></tr>`).join("")}</table>
-    <h3>History</h3>
-    <table>${d.events.map(ev => `<tr><td>${fmt(ev.date)}</td><td>${esc(ev.kind)}</td><td>${esc(ev.detail)}</td></tr>`).join("")}</table>`;
-  $("dlg").showModal();
+  const row = e.target.closest(".row"); if (!row || !row.dataset.id) return;
+  const name = row.querySelector(".org strong").textContent;
+  const town = row.querySelector(".org span").textContent.split(",")[0].replace("Location not listed", "");
+  if (e.target.closest(".copy")){
+    const b = e.target.closest(".copy");
+    navigator.clipboard.writeText(name).then(() => { b.textContent = "Copied"; setTimeout(() => b.textContent = "Copy name", 1600); })
+      .catch(() => { b.textContent = name; });
+    return;
+  }
+  if (!e.target.closest(".row-head")) return;
+  const det = row.querySelector(".detail"), head = row.querySelector(".row-head");
+  const open = !row.classList.contains("open");
+  row.classList.toggle("open", open); det.hidden = !open; head.setAttribute("aria-expanded", open);
+  if (open && !det.dataset.loaded){
+    det.innerHTML = `<p class="note wide">Loading…</p>`;
+    try { det.innerHTML = detailHtml(await API.detail(row.dataset.id), name, town); det.dataset.loaded = "1"; }
+    catch { det.innerHTML = `<p class="note wide">Couldn't load the details. Try again.</p>`; }
+  }
 });
-$("dlg").addEventListener("click", e => { if (e.target === $("dlg")) $("dlg").close(); });
-run();
+
+const go = () => { page = 1; clearTimeout(timer); timer = setTimeout(run, 160); };
+$("form").addEventListener("submit", e => { e.preventDefault(); page = 1; clearTimeout(timer); run(); $("results").scrollIntoView({behavior:"smooth"}); });
+["q", "town"].forEach(id => $(id).addEventListener("input", go));
+["route", "rating", "status"].forEach(id => $(id).addEventListener("change", go));
+document.querySelectorAll(".try button").forEach(b => b.addEventListener("click", () => { $("q").value = b.dataset.q; page = 1; run(); }));
+$("prev").onclick = () => { page--; run(); $("results").scrollIntoView(); };
+$("next").onclick = () => { page++; run(); $("results").scrollIntoView(); };
+})();
 </script>
+<!--/SCRIPT-->
 </body>
 </html>

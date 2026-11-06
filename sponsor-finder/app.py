@@ -43,6 +43,9 @@ def stats():
         removed=c.execute("SELECT COUNT(*) FROM sponsors WHERE removed_on IS NOT NULL").fetchone()[0],
         routes=[r[0] for r in c.execute(
             "SELECT route FROM licences GROUP BY route ORDER BY COUNT(*) DESC")],
+        ch_date=c.execute("SELECT MAX(data_date) FROM companies_house").fetchone()[0],
+        matched=c.execute("SELECT COUNT(*) FROM companies_house h JOIN sponsors s ON s.id = h.sponsor_id "
+                          "WHERE s.removed_on IS NULL").fetchone()[0],
     )
 
 
@@ -76,7 +79,7 @@ def search():
         params.append(f"%({rating} rating)%" if rating == "B" else "%(A%")
 
     sql_where = ("WHERE " + " AND ".join(where)) if where else ""
-    order = "ORDER BY f.rank" if join else "ORDER BY s.name COLLATE NOCASE"
+    order = "ORDER BY f.rank" if join else """ORDER BY ltrim(s.name, '"''(&.-*# ') COLLATE NOCASE"""
     c = db()
     total = c.execute(f"SELECT COUNT(*) FROM sponsors s {join} {sql_where}", params).fetchone()[0]
     rows = c.execute(
