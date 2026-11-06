@@ -1,0 +1,188 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Sponsor Finder</title>
+<style>
+:root{
+  --bg:#f6f7f9; --card:#fff; --text:#16181d; --muted:#5d6470; --line:#e2e5ea;
+  --accent:#1d4ed8; --accent-soft:#e8eefc; --ok:#047857; --ok-soft:#e3f6ee;
+  --bad:#b42318; --bad-soft:#fdecea; --warn:#a15c07; --warn-soft:#fdf3e1;
+}
+@media (prefers-color-scheme: dark){
+  :root{--bg:#0f1115;--card:#171a21;--text:#e8eaee;--muted:#9aa2ae;--line:#2a2f3a;
+  --accent:#7aa2ff;--accent-soft:#1c2540;--ok:#4ade9b;--ok-soft:#12291f;--bad:#ff8a80;--bad-soft:#341a1a;
+  --warn:#f5b85a;--warn-soft:#33270f;}
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--text);font:15px/1.5 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+.wrap{max-width:980px;margin:0 auto;padding:0 16px}
+header{padding:40px 0 20px}
+h1{margin:0 0 6px;font-size:30px;letter-spacing:-.02em}
+.sub{color:var(--muted);margin:0}
+.stats{display:flex;gap:10px;flex-wrap:wrap;margin:18px 0 0}
+.stat{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:10px 14px;min-width:140px}
+.stat b{display:block;font-size:20px;font-variant-numeric:tabular-nums}
+.stat span{color:var(--muted);font-size:13px}
+.search{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:14px;display:grid;
+  grid-template-columns:2fr 1fr;gap:10px;margin-top:22px}
+.search .row{grid-column:1/-1;display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+input,select{width:100%;padding:11px 12px;border:1px solid var(--line);border-radius:9px;background:var(--bg);
+  color:var(--text);font:inherit}
+input:focus,select:focus{outline:2px solid var(--accent);outline-offset:-1px}
+#q{font-size:17px}
+.meta{color:var(--muted);margin:16px 2px 8px;font-size:14px}
+.list{display:flex;flex-direction:column;gap:8px}
+.item{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:14px 16px;cursor:pointer;
+  display:flex;justify-content:space-between;gap:12px;align-items:flex-start;text-align:left;width:100%;color:inherit;font:inherit}
+.item:hover{border-color:var(--accent)}
+.name{font-weight:600;font-size:16px}
+.loc{color:var(--muted);font-size:14px}
+.tags{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
+.tag{font-size:12px;padding:2px 8px;border-radius:99px;background:var(--accent-soft);color:var(--accent)}
+.tag.b{background:var(--warn-soft);color:var(--warn)}
+.badge{display:inline-block;font-size:12px;font-weight:600;padding:3px 10px;border-radius:99px;white-space:nowrap}
+.badge.on{background:var(--ok-soft);color:var(--ok)}
+.badge.off{background:var(--bad-soft);color:var(--bad)}
+.pager{display:flex;gap:8px;justify-content:center;margin:20px 0 40px}
+button.pg{padding:8px 14px;border:1px solid var(--line);background:var(--card);color:var(--text);border-radius:8px;cursor:pointer;font:inherit}
+button.pg:disabled{opacity:.4;cursor:default}
+.note{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:14px 16px;color:var(--muted);font-size:14px;margin-bottom:40px}
+.note b{color:var(--text)}
+dialog{border:1px solid var(--line);border-radius:14px;padding:0;max-width:640px;width:calc(100% - 32px);
+  background:var(--card);color:var(--text)}
+dialog::backdrop{background:rgba(0,0,0,.45)}
+.dlg{padding:22px}
+.dlg h2{margin:0 0 4px;font-size:22px}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:16px 0}
+.grid div{background:var(--bg);border-radius:9px;padding:10px 12px}
+.grid span:not(.badge){display:block;color:var(--muted);font-size:12px}
+table{width:100%;border-collapse:collapse;font-size:14px;margin-top:6px}
+th,td{text-align:left;padding:7px 6px;border-bottom:1px solid var(--line);vertical-align:top}
+th{color:var(--muted);font-weight:500;font-size:12px}
+h3{font-size:14px;margin:18px 0 4px}
+.close{float:right;border:0;background:none;color:var(--muted);font-size:22px;cursor:pointer;line-height:1}
+.empty{text-align:center;color:var(--muted);padding:40px 0}
+@media (max-width:640px){.search{grid-template-columns:1fr}.search .row{grid-template-columns:1fr}.grid{grid-template-columns:1fr}
+  .item{flex-direction:column}}
+</style>
+</head>
+<body>
+<div class="wrap">
+<header>
+  <h1>Sponsor Finder</h1>
+  <p class="sub">Check whether a UK company holds a licence to sponsor Skilled Worker (formerly Tier 2) and other work visas.</p>
+  <div class="stats">
+    <div class="stat"><b id="sActive">–</b><span>Licensed sponsors</span></div>
+    <div class="stat"><b id="sRemoved">–</b><span>Removed since tracking began</span></div>
+    <div class="stat"><b id="sUpdated">–</b><span>Register date</span></div>
+  </div>
+</header>
+
+<div class="search">
+  <input id="q" type="search" placeholder="Company name, e.g. Deloitte" autofocus>
+  <input id="town" type="search" placeholder="Town or county">
+  <div class="row">
+    <select id="route"><option value="">All visa routes</option></select>
+    <select id="status"><option value="">Active &amp; removed</option><option value="active">Active only</option><option value="removed">Removed only</option></select>
+    <select id="rating"><option value="">Any rating</option><option value="A">A rating</option><option value="B">B rating</option></select>
+  </div>
+</div>
+
+<div class="meta" id="meta"></div>
+<div class="list" id="list"></div>
+<div class="pager"><button class="pg" id="prev">← Previous</button><button class="pg" id="next">Next →</button></div>
+
+<div class="note">
+  <b>About this data.</b> Every company here comes from the Home Office
+  <a href="https://www.gov.uk/government/publications/register-of-licensed-sponsors-workers" target="_blank" rel="noopener">Register of licensed sponsors: workers</a>,
+  which is updated every working day. The register lists only the name, location, licence type, rating and visa route.
+  <b>“First seen”</b> is the date this site first found the company on the register, not the official licence date.
+  <b>“Removed”</b> means the company has dropped off the register since we started tracking.
+  The Home Office does not publish licence grant dates or when a company last sponsored someone.
+  An A rating means the licence is in good standing. A B rating means the Home Office has downgraded it and the company cannot issue new certificates of sponsorship until it is fixed.
+</div>
+</div>
+
+<dialog id="dlg"><div class="dlg" id="dlgBody"></div></dialog>
+
+<script>
+const $ = id => document.getElementById(id);
+const esc = s => (s ?? "").toString().replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const fmt = d => d ? new Date(d + "T00:00:00").toLocaleDateString("en-GB", {day:"numeric", month:"short", year:"numeric"}) : "—";
+let page = 1, timer, trackingSince;
+
+fetch("/api/stats").then(r => r.json()).then(s => {
+  $("sActive").textContent = s.active.toLocaleString();
+  $("sRemoved").textContent = s.removed.toLocaleString();
+  $("sUpdated").textContent = fmt(s.updated);
+  trackingSince = s.first_snapshot;
+  s.routes.forEach(r => $("route").insertAdjacentHTML("beforeend", `<option>${esc(r)}</option>`));
+});
+
+function tags(lic){
+  return lic.map(l => `<span class="tag ${/B rating/.test(l.rating) ? "b" : ""}">${esc(l.route)} · ${esc(l.rating.replace(/^.*?\((.*)\)\s*$/, "$1"))}</span>`).join("");
+}
+
+async function run(){
+  const p = new URLSearchParams({q:$("q").value, town:$("town").value, route:$("route").value,
+    status:$("status").value, rating:$("rating").value, page});
+  const d = await (await fetch("/api/search?" + p)).json();
+  $("meta").textContent = `${d.total.toLocaleString()} ${d.total === 1 ? "company" : "companies"} found`;
+  $("list").innerHTML = d.results.length ? d.results.map(r => `
+    <button class="item" data-id="${r.id}">
+      <div>
+        <div class="name">${esc(r.name)}</div>
+        <div class="loc">${esc([r.town, r.county].filter(Boolean).join(", ")) || "Location not listed"} · First seen ${fmt(r.first_seen)}${r.incorporated ? ` · Incorporated ${fmt(r.incorporated)}` : ""}</div>
+        <div class="tags">${tags(r.licences)}</div>
+      </div>
+      ${r.removed_on ? `<span class="badge off">Removed ${fmt(r.removed_on)}</span>` : `<span class="badge on">Licensed</span>`}
+    </button>`).join("") : `<div class="empty">No companies match. If a company isn't listed, it doesn't currently hold a worker sponsor licence under that name.</div>`;
+  $("prev").disabled = page <= 1;
+  $("next").disabled = page * d.page_size >= d.total;
+}
+
+function reset(){ page = 1; clearTimeout(timer); timer = setTimeout(run, 200); }
+["q","town"].forEach(id => $(id).addEventListener("input", reset));
+["route","status","rating"].forEach(id => $(id).addEventListener("change", reset));
+$("prev").onclick = () => { page--; run(); scrollTo({top:0}); };
+$("next").onclick = () => { page++; run(); scrollTo({top:0}); };
+
+$("list").addEventListener("click", async e => {
+  const b = e.target.closest(".item"); if (!b) return;
+  const d = await (await fetch("/api/sponsor/" + b.dataset.id)).json();
+  const s = d.sponsor;
+  const firstNote = s.first_seen === d.tracking_since ? " (licensed on or before this date)" : "";
+  $("dlgBody").innerHTML = `
+    <button class="close" onclick="dlg.close()" aria-label="Close">×</button>
+    <h2>${esc(s.name)}</h2>
+    <div class="loc">${esc([s.town, s.county].filter(Boolean).join(", "))}</div>
+    <div class="grid">
+      <div><span>Status</span>${s.removed_on ? `<span class="badge off">Removed</span>` : `<span class="badge on">Licensed</span>`}</div>
+      <div><span>First seen on register</span>${fmt(s.first_seen)}${firstNote}</div>
+      <div><span>Last seen on register</span>${fmt(s.last_seen)}</div>
+      <div><span>Removed on</span>${fmt(s.removed_on)}</div>
+    </div>
+    ${d.companies_house ? (h => `<h3>Companies House</h3>
+    <div class="grid">
+      <div><span>Company number</span><a href="https://find-and-update.company-information.service.gov.uk/company/${esc(h.number)}" target="_blank" rel="noopener">${esc(h.number)}</a></div>
+      <div><span>Company status</span>${esc(h.status)}</div>
+      <div><span>Incorporated</span>${fmt(h.incorporated)}</div>
+      <div><span>Business type</span>${esc(h.sic || "—")}</div>
+      <div><span>Registered office</span>${esc([h.post_town, h.postcode].filter(Boolean).join(", "))}</div>
+      <div><span>Type</span>${esc(h.category)}</div>
+    </div>`)(d.companies_house) : `<p class="loc">No matching Companies House record. It may be a sole trader, partnership or public body, trade under another name, or have been dissolved.</p>`}
+    <h3>Licences</h3>
+    <table><tr><th>Route</th><th>Type &amp; rating</th><th>Since</th><th></th></tr>
+      ${d.licences.map(l => `<tr><td>${esc(l.route)}</td><td>${esc(l.type_rating)}</td><td>${fmt(l.first_seen)}</td>
+        <td>${l.active ? "" : "Ended"}</td></tr>`).join("")}</table>
+    <h3>History</h3>
+    <table>${d.events.map(ev => `<tr><td>${fmt(ev.date)}</td><td>${esc(ev.kind)}</td><td>${esc(ev.detail)}</td></tr>`).join("")}</table>`;
+  $("dlg").showModal();
+});
+$("dlg").addEventListener("click", e => { if (e.target === $("dlg")) $("dlg").close(); });
+run();
+</script>
+</body>
+</html>
