@@ -82,6 +82,9 @@ def main():
     CACHE.mkdir(exist_ok=True)
     found = {}
     files = part_urls()
+    for old in CACHE.glob("*.zip"):
+        if old.name not in files:
+            old.unlink()  # last month's files
     data_date = re.search(r"\d{4}-\d{2}-\d{2}", files[0]).group(0)
     for f in files:
         path = CACHE / f
